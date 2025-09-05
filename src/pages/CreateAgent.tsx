@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 
 const CreateAgent = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -53,9 +54,15 @@ const CreateAgent = () => {
 
     setIsUploadingFile(true);
     try {
-      // Dejamos que Supabase infiera el Content-Type automáticamente
+      // Read file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Send as binary data with proper content-type header
       const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
-        body: file,
+        body: arrayBuffer,
+        headers: {
+          "Content-Type": file.type || "application/octet-stream"
+        }
       });
 
       if (error) throw new Error(error.message);
@@ -68,7 +75,9 @@ const CreateAgent = () => {
       showError((err as Error).message || "No se pudo procesar el archivo.");
     } finally {
       setIsUploadingFile(false);
-      event.target.value = ""; // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset file input
+      }
     }
   };
 
@@ -151,18 +160,46 @@ const CreateAgent = () => {
               <div className="context-importer">
                 <label className="flex items-center justify-center gap-2 cursor-pointer text-white h-full">
                   {isUploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileUp className="w-5 h-5" />}
-                  <span>{isUploadingFile ? 'Procesando...' : 'Cargar Archivo (PDF, DOCX, TXT)'}</span>
-                  <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt" disabled={isUploadingFile} />
+                  <span>Cargar Documento</span>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.txt,text/*"
+                    className="hidden" 
+                  />
                 </label>
               </div>
             </div>
-            <Textarea value={businessContext} onChange={(e) => setBusinessContext(e.target.value)} placeholder="Pega aquí información clave sobre tu negocio o usa las opciones de arriba para llenarlo automáticamente." className="bg-black/20 border-white/20 mt-2 min-h-[150px]" />
+            
+            <Textarea 
+              value={businessContext}
+              onChange={(e) => setBusinessContext(e.target.value)}
+              placeholder="Información sobre tu negocio, productos, servicios, políticas, etc."
+              className="bg-black/30 border-white/20 text-white placeholder:text-gray-500 min-h-[120px]"
+            />
           </div>
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading || isFetchingUrl || isUploadingFile}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isLoading ? "Creando..." : "Crear Agente"}
+          
+          <div className="flex justify-end gap-4 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate('/dashboard')}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : "Crear Agente"}
             </Button>
           </div>
         </form>

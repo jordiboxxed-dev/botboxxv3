@@ -14,28 +14,33 @@ serve(async (req) => {
   }
 
   try {
-    const contentType = req.headers.get("content-type");
+    const contentType = req.headers.get("content-type") || "";
+    
     if (!contentType) {
       throw new Error("El encabezado Content-Type es requerido.");
     }
+
+    const arrayBuffer = await req.arrayBuffer();
     
-    const fileBuffer = await req.arrayBuffer();
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error("El archivo está vacío.");
+    }
 
     let text = "";
 
     if (contentType.includes("application/pdf")) {
-      const data = await pdf(fileBuffer);
+      const data = await pdf(new Uint8Array(arrayBuffer));
       text = data.text;
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-      const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
+      const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
-    } else if (contentType.includes("text/plain")) {
-      text = new TextDecoder().decode(fileBuffer);
+    } else if (contentType.includes("text/plain") || contentType.includes("text/")) {
+      text = new TextDecoder().decode(arrayBuffer);
     } else {
       throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
     }
 
-    if (!text) {
+    if (!text || text.trim().length === 0) {
         throw new Error("No se pudo extraer texto del archivo. Puede que esté vacío o corrupto.");
     }
 
