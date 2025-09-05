@@ -53,9 +53,9 @@ const CreateAgent = () => {
 
     setIsUploadingFile(true);
     try {
+      // Dejamos que Supabase infiera el Content-Type automáticamente
       const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
         body: file,
-        headers: { 'Content-Type': file.type },
       });
 
       if (error) throw new Error(error.message);
