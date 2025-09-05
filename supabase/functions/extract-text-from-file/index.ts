@@ -5,7 +5,7 @@ import mammoth from "https://esm.sh/mammoth@1.7.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -15,6 +15,10 @@ serve(async (req) => {
 
   try {
     const contentType = req.headers.get("content-type");
+    if (!contentType) {
+      throw new Error("El encabezado Content-Type es requerido.");
+    }
+    
     const fileBuffer = await req.arrayBuffer();
 
     let text = "";
