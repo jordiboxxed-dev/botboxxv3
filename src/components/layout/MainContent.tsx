@@ -11,6 +11,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 type Agent = DbAgent | MockAgent;
 
@@ -22,6 +23,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const BUSINESS_CONTEXT_LIMIT = 50000;
 
 export const MainContent = ({ selectedAgent }: MainContentProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -82,9 +85,14 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${url} ---\n${data.content}`.trim());
-      showSuccess("Contenido de la URL importado correctamente.");
-      setUrl("");
+      const newContent = `${businessContext}\n\n--- Contenido de ${url} ---\n${data.content}`.trim();
+      if (newContent.length <= BUSINESS_CONTEXT_LIMIT) {
+        setBusinessContext(newContent);
+        showSuccess("Contenido de la URL importado correctamente.");
+        setUrl("");
+      } else {
+        showError("No se puede añadir el contenido de la URL porque excede el límite de caracteres.");
+      }
     } catch (err) {
       console.error(err);
       showError("No se pudo importar el contenido de la URL.");
@@ -151,6 +159,12 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
     }
   };
 
+  const handleContextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (e.target.value.length <= BUSINESS_CONTEXT_LIMIT) {
+      setBusinessContext(e.target.value);
+    }
+  };
+
   return (
     <motion.main
       initial={{ opacity: 0 }}
@@ -196,10 +210,21 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
 
                 <Textarea 
                     value={businessContext}
-                    onChange={(e) => setBusinessContext(e.target.value)}
+                    onChange={handleContextChange}
                     placeholder="Ej: Nombre de la empresa, productos, horarios, políticas de devolución..."
-                    className="flex-1 bg-black/30 border-white/20 text-white placeholder:text-gray-500 rounded-lg resize-none"
+                    className={cn(
+                      "flex-1 bg-black/30 border-white/20 text-white placeholder:text-gray-500 rounded-lg resize-none",
+                      businessContext.length >= BUSINESS_CONTEXT_LIMIT && "border-red-500 focus-visible:ring-red-500"
+                    )}
                 />
+                <div className="text-right text-xs mt-1 text-gray-400">
+                  <span className={cn(
+                    businessContext.length > BUSINESS_CONTEXT_LIMIT * 0.9 && 'text-yellow-400',
+                    businessContext.length >= BUSINESS_CONTEXT_LIMIT && 'text-red-500 font-bold'
+                  )}>
+                    {businessContext.length.toLocaleString()} / {BUSINESS_CONTEXT_LIMIT.toLocaleString()}
+                  </span>
+                </div>
              </div>
           </div>
         </div>

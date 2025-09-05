@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { showError, showSuccess } from "@/utils/toast";
 import { Loader2, Link as LinkIcon, FileUp } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+const BUSINESS_CONTEXT_LIMIT = 50000;
 
 const CreateAgent = () => {
   const navigate = useNavigate();
@@ -37,9 +40,14 @@ const CreateAgent = () => {
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${url} ---\n${data.content}`.trim());
-      showSuccess("Contenido de la URL importado.");
-      setUrl("");
+      const newContent = `${businessContext}\n\n--- Contenido de ${url} ---\n${data.content}`.trim();
+      if (newContent.length <= BUSINESS_CONTEXT_LIMIT) {
+        setBusinessContext(newContent);
+        showSuccess("Contenido de la URL importado.");
+        setUrl("");
+      } else {
+        showError("No se puede añadir el contenido de la URL porque excede el límite de caracteres.");
+      }
     } catch (err) {
       console.error(err);
       showError((err as Error).message || "No se pudo importar el contenido de la URL.");
@@ -66,8 +74,13 @@ const CreateAgent = () => {
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${file.name} ---\n${data.content}`.trim());
-      showSuccess(`Contenido de ${file.name} importado.`);
+      const newContent = `${businessContext}\n\n--- Contenido de ${file.name} ---\n${data.content}`.trim();
+      if (newContent.length <= BUSINESS_CONTEXT_LIMIT) {
+        setBusinessContext(newContent);
+        showSuccess(`Contenido de ${file.name} importado.`);
+      } else {
+        showError("No se puede añadir el contenido del archivo porque excede el límite de caracteres.");
+      }
     } catch (err) {
       console.error(err);
       showError((err as Error).message || "No se pudo procesar el archivo.");
@@ -117,6 +130,12 @@ const CreateAgent = () => {
     }
   };
 
+  const handleContextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (e.target.value.length <= BUSINESS_CONTEXT_LIMIT) {
+      setBusinessContext(e.target.value);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
       <div className="w-full max-w-3xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl">
@@ -144,7 +163,7 @@ const CreateAgent = () => {
             <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 mt-2 min-h-[120px]" />
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-2">
             <Label className="text-white">Contexto de Negocio</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="context-importer">
@@ -172,10 +191,21 @@ const CreateAgent = () => {
             
             <Textarea 
               value={businessContext}
-              onChange={(e) => setBusinessContext(e.target.value)}
+              onChange={handleContextChange}
               placeholder="Información sobre tu negocio, productos, servicios, políticas, etc."
-              className="bg-black/30 border-white/20 text-white placeholder:text-gray-500 min-h-[120px]"
+              className={cn(
+                "bg-black/30 border-white/20 text-white placeholder:text-gray-500 min-h-[120px]",
+                businessContext.length >= BUSINESS_CONTEXT_LIMIT && "border-red-500 focus-visible:ring-red-500"
+              )}
             />
+            <div className="text-right text-xs text-gray-400">
+              <span className={cn(
+                businessContext.length > BUSINESS_CONTEXT_LIMIT * 0.9 && 'text-yellow-400',
+                businessContext.length >= BUSINESS_CONTEXT_LIMIT && 'text-red-500 font-bold'
+              )}>
+                {businessContext.length.toLocaleString()} / {BUSINESS_CONTEXT_LIMIT.toLocaleString()}
+              </span>
+            </div>
           </div>
           
           <div className="flex justify-end gap-4 pt-4">
