@@ -8,13 +8,12 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Manejo de la solicitud pre-vuelo CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { prompt, context } = await req.json();
+    const { prompt, context, systemPrompt } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
     if (!apiKey) {
@@ -24,7 +23,7 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const fullPrompt = `Contexto del negocio: "${context}".\n\nBasado en ese contexto, responde a la siguiente pregunta del usuario.\n\nPregunta: "${prompt}"\n\nRespuesta:`;
+    const fullPrompt = `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto del Negocio:**\n${context}\n\n**Pregunta del Usuario:**\n"${prompt}"\n\n**Respuesta:**`;
 
     const result = await model.generateContent(fullPrompt);
     const response = await result.response;

@@ -1,12 +1,14 @@
 import { Agent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Info } from "lucide-react";
+import { Bot, Info, Link, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface MainContentProps {
   selectedAgent: Agent | null;
@@ -21,8 +23,36 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [businessContext, setBusinessContext] = useState("");
+  const [url, setUrl] = useState("");
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+
+  const handleFetchUrl = async () => {
+    if (!url.trim()) {
+      showError("Por favor, introduce una URL válida.");
+      return;
+    }
+    setIsFetchingUrl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-url-content", {
+        body: { url },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
+      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${url} ---\n${data.content}`.trim());
+      showSuccess("Contenido de la URL importado correctamente.");
+      setUrl("");
+    } catch (err) {
+      console.error(err);
+      showError("No se pudo importar el contenido de la URL.");
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
 
   const handleSendMessage = async (prompt: string) => {
+    if (!selectedAgent) return;
     if (!businessContext.trim()) {
       showError("Por favor, añade información en el contexto de negocio antes de chatear.");
       return;
@@ -34,7 +64,7 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
 
     try {
       const { data, error } = await supabase.functions.invoke("ask-gemini", {
-        body: { prompt, context: businessContext },
+        body: { prompt, context: businessContext, systemPrompt: selectedAgent.systemPrompt },
       });
 
       if (error) throw new Error(error.message);
@@ -78,9 +108,24 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
                     <Info className="w-5 h-5 text-gray-400" />
                     <h3 className="text-lg font-semibold text-white">Contexto de Negocio</h3>
                 </div>
-                <p className="text-sm text-gray-400 mb-4">
-                    Pega aquí la información de tu empresa para que el agente pueda dar respuestas precisas.
+                
+                <div className="flex items-center gap-2 mb-2">
+                    <Input 
+                        type="url"
+                        placeholder="Importar desde URL"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        className="bg-black/30 border-white/20 text-white placeholder:text-gray-500"
+                    />
+                    <Button onClick={handleFetchUrl} disabled={isFetchingUrl} size="icon" variant="ghost">
+                        {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                    </Button>
+                </div>
+
+                <p className="text-xs text-gray-500 mb-4 text-center">
+                    Pega una URL para extraer su texto o escribe/pega el contexto directamente abajo.
                 </p>
+
                 <Textarea 
                     value={businessContext}
                     onChange={(e) => setBusinessContext(e.target.value)}
