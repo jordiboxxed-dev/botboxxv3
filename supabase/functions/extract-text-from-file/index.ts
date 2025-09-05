@@ -34,17 +34,28 @@ serve(async (req) => {
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
       const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
-    } else if (contentType.includes("text/plain") || contentType.includes("text/")) {
-      text = new TextDecoder().decode(arrayBuffer);
+    } else if (contentType.includes("text/plain") || contentType.includes("text/") || contentType === "text/plain;charset=UTF-8") {
+      // Handle various text content types
+      const decoder = new TextDecoder("utf-8");
+      text = decoder.decode(arrayBuffer);
     } else {
-      throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
+      // Try to decode as text as fallback for any other content type
+      try {
+        const decoder = new TextDecoder("utf-8");
+        text = decoder.decode(arrayBuffer);
+      } catch (decodeError) {
+        throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
+      }
     }
 
     if (!text || text.trim().length === 0) {
         throw new Error("No se pudo extraer texto del archivo. Puede que esté vacío o corrupto.");
     }
 
-    return new Response(JSON.stringify({ content: text.trim() }), {
+    // Clean up the text by removing extra whitespace while preserving paragraphs
+    const cleanedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+
+    return new Response(JSON.stringify({ content: cleanedText }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
