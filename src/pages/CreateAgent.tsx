@@ -54,12 +54,10 @@ const CreateAgent = () => {
 
     setIsUploadingFile(true);
     try {
-      // Read file as ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
+      const blob = new Blob([file], { type: file.type });
       
-      // Send as binary data with proper content-type header
       const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
-        body: arrayBuffer,
+        body: blob,
         headers: {
           "Content-Type": file.type || "application/octet-stream"
         }

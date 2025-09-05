@@ -34,18 +34,11 @@ serve(async (req) => {
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
       const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
-    } else if (contentType.includes("text/plain") || contentType.includes("text/") || contentType === "text/plain;charset=UTF-8") {
-      // Handle various text content types
+    } else if (contentType.startsWith("text/")) {
       const decoder = new TextDecoder("utf-8");
       text = decoder.decode(arrayBuffer);
     } else {
-      // Try to decode as text as fallback for any other content type
-      try {
-        const decoder = new TextDecoder("utf-8");
-        text = decoder.decode(arrayBuffer);
-      } catch (decodeError) {
-        throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
-      }
+      throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
     }
 
     if (!text || text.trim().length === 0) {
