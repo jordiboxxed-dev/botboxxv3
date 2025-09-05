@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, context, systemPrompt } = await req.json();
+    const { prompt, history, context, systemPrompt } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
     if (!apiKey) {
@@ -23,9 +23,26 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const fullPrompt = `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto del Negocio:**\n${context}\n\n**Pregunta del Usuario:**\n"${prompt}"\n\n**Respuesta:**`;
+    const formattedHistory = (history || []).map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
 
-    const result = await model.generateContent(fullPrompt);
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto del Negocio:**\n${context}` }],
+        },
+        {
+          role: "model",
+          parts: [{ text: "Entendido. Estoy listo para ayudar siguiendo estas instrucciones y usando el contexto proporcionado." }],
+        },
+        ...formattedHistory,
+      ],
+    });
+
+    const result = await chat.sendMessage(prompt);
     const response = await result.response;
     const text = response.text();
 

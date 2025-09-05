@@ -5,6 +5,7 @@ import { Agent as MockAgent } from "@/data/mock-agents"; // Renombrado para evit
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SkeletonLoader } from "./SkeletonLoader";
+import { showError, showSuccess } from "@/utils/toast";
 
 // Definimos un tipo para los agentes que vienen de la DB
 export interface Agent {
@@ -22,6 +23,7 @@ export const AppLayout = () => {
   const [userAgents, setUserAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | MockAgent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [chatKey, setChatKey] = useState(0); // Clave para forzar el reseteo del chat
 
   useEffect(() => {
     const fetchAgentsAndSetSelected = async () => {
@@ -33,7 +35,6 @@ export const AppLayout = () => {
         return;
       }
 
-      // Fetch todos los agentes del usuario
       const { data: agents, error } = await supabase
         .from('agents')
         .select('*')
@@ -47,18 +48,15 @@ export const AppLayout = () => {
       
       setUserAgents(agents || []);
 
-      // Encontrar y establecer el agente seleccionado basado en la URL
       if (agentId) {
         const agentFromDb = agents?.find(a => a.id === agentId);
         if (agentFromDb) {
           setSelectedAgent(agentFromDb);
         } else {
-          // Podría ser un ID inválido, redirigir o mostrar error
           console.warn("Agent not found, redirecting to dashboard");
           navigate('/dashboard');
         }
       } else {
-        // Si no hay ID en la URL, no seleccionamos ninguno
         setSelectedAgent(null);
       }
 
@@ -68,14 +66,43 @@ export const AppLayout = () => {
     fetchAgentsAndSetSelected();
   }, [agentId, navigate]);
 
+  const handleClearChat = async () => {
+    if (!selectedAgent) {
+      showError("Selecciona un agente para limpiar el chat.");
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("agent_id", selectedAgent.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      showError("No se pudo limpiar el historial del chat.");
+      console.error(error);
+    } else {
+      showSuccess("Historial de chat limpiado.");
+      setChatKey(prevKey => prevKey + 1); // Cambia la clave para forzar el re-renderizado de MainContent
+    }
+  };
+
   if (isLoading) {
     return <SkeletonLoader />;
   }
 
   return (
     <div className="flex w-full min-h-screen">
-      <Sidebar userAgents={userAgents} onAgentSelect={setSelectedAgent} activeAgentId={agentId} />
-      <MainContent selectedAgent={selectedAgent} />
+      <Sidebar 
+        userAgents={userAgents} 
+        onAgentSelect={setSelectedAgent} 
+        activeAgentId={agentId}
+        onClearChat={handleClearChat}
+      />
+      <MainContent key={chatKey} selectedAgent={selectedAgent} />
     </div>
   );
 };

@@ -1,19 +1,19 @@
-import { mockAgents, Agent as MockAgent } from "@/data/mock-agents";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, Plus, LayoutTemplate } from "lucide-react";
+import { LogOut, Bot, Plus, LayoutTemplate, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AgentCard } from "@/components/agents/AgentCard";
-import { Agent } from "./AppLayout"; // Importar el tipo de agente de la DB
+import { Agent } from "./AppLayout";
 import { Link, useNavigate } from "react-router-dom";
 
 interface SidebarProps {
   userAgents: Agent[];
-  onAgentSelect: (agent: Agent | MockAgent) => void;
+  onAgentSelect: (agent: Agent) => void;
   activeAgentId?: string;
+  onClearChat: () => void;
 }
 
-export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId }: SidebarProps) => {
+export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat }: SidebarProps) => {
   const navigate = useNavigate();
 
   return (
@@ -46,7 +46,19 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId }: SidebarPro
         </motion.button>
 
         <div className="my-2 border-t border-white/10"></div>
-        <h2 className="text-sm font-semibold text-gray-400 px-2 mb-2">Mis Agentes</h2>
+        <div className="flex justify-between items-center px-2 mb-2">
+          <h2 className="text-sm font-semibold text-gray-400">Mis Agentes</h2>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClearChat} 
+            className="h-7 w-7 text-gray-400 hover:text-white hover:bg-white/10"
+            disabled={!activeAgentId}
+            title="Limpiar historial de chat"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
         
         {userAgents.length > 0 ? userAgents.map((agent, index) => (
           <Link to={`/agent/${agent.id}`} key={agent.id} className={`rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
@@ -57,7 +69,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId }: SidebarPro
                 avatar: 'bot',
                 systemPrompt: agent.system_prompt || ''
               }}
-              onClick={() => {}} // El Link ya maneja la navegación
+              onClick={() => {}}
               index={index} 
             />
           </Link>

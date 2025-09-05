@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Info, Link, Loader2 } from "lucide-react";
+import { Bot, Info, Link as LinkIcon, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 type Agent = DbAgent | MockAgent;
 
@@ -30,12 +31,41 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
   useEffect(() => {
-    // Cuando el agente cambia, reseteamos el chat y el contexto
-    setMessages([]);
     const initialContext = selectedAgent && 'business_context' in selectedAgent 
       ? selectedAgent.business_context || "" 
       : "";
     setBusinessContext(initialContext);
+
+    const fetchMessages = async () => {
+      if (!selectedAgent) {
+        setMessages([]);
+        return;
+      }
+
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("messages")
+        .select("role, content")
+        .eq("agent_id", selectedAgent.id)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        showError("Error al cargar el historial del chat.");
+        console.error(error);
+      } else if (data) {
+        setMessages(data as Message[]);
+      }
+      setIsLoading(false);
+    };
+
+    fetchMessages();
   }, [selectedAgent]);
 
   const handleFetchUrl = async () => {
@@ -71,13 +101,30 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
     }
 
     const userMessage: Message = { role: "user", content: prompt };
-    setMessages((prev) => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
     setIsLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        showError("Usuario no encontrado.");
+        setIsLoading(false);
+        return;
+    }
+    
+    await supabase.from("messages").insert({
+        agent_id: selectedAgent.id,
+        user_id: user.id,
+        role: "user",
+        content: prompt,
+    });
 
     try {
       const systemPrompt = ('systemPrompt' in selectedAgent ? selectedAgent.systemPrompt : selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
+      const history = currentMessages.slice(0, -1);
+
       const { data, error } = await supabase.functions.invoke("ask-gemini", {
-        body: { prompt, context: businessContext, systemPrompt },
+        body: { prompt, history, context: businessContext, systemPrompt },
       });
 
       if (error) throw new Error(error.message);
@@ -85,6 +132,13 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
       
       const assistantMessage: Message = { role: "assistant", content: data.response };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      await supabase.from("messages").insert({
+        agent_id: selectedAgent.id,
+        user_id: user.id,
+        role: "assistant",
+        content: data.response,
+      });
 
     } catch (err) {
       console.error(err);
@@ -131,7 +185,7 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
                         className="bg-black/30 border-white/20 text-white placeholder:text-gray-500"
                     />
                     <Button onClick={handleFetchUrl} disabled={isFetchingUrl} size="icon" variant="ghost">
-                        {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                        {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
                     </Button>
                 </div>
 
