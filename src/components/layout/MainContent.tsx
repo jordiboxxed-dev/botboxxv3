@@ -142,8 +142,9 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
 
     } catch (err) {
       console.error(err);
-      showError("Hubo un error al contactar al agente. Revisa la consola para más detalles.");
-      const errorMessage: Message = { role: "assistant", content: "Lo siento, no pude procesar tu solicitud." };
+      const errorMessageText = (err instanceof Error) ? err.message : "Ocurrió un error desconocido.";
+      showError(`Error al contactar al agente: ${errorMessageText}`);
+      const errorMessage: Message = { role: "assistant", content: `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}` };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
