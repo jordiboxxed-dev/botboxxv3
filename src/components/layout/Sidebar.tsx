@@ -1,18 +1,13 @@
 import { mockAgents, Agent } from "@/data/mock-agents";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot } from "lucide-react";
+import { LogOut, Bot, Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import * as LucideIcons from "lucide-react";
+import { AgentCard } from "@/components/agents/AgentCard";
 
 interface SidebarProps {
   onAgentSelect: (agent: Agent) => void;
 }
-
-const Icon = ({ name, ...props }: { name: string } & LucideIcons.LucideProps) => {
-  const LucideIcon = LucideIcons[name as keyof typeof LucideIcons] as LucideIcons.LucideIcon;
-  return LucideIcon ? <LucideIcon {...props} /> : <Bot {...props} />;
-};
 
 export const Sidebar = ({ onAgentSelect }: SidebarProps) => {
   return (
@@ -26,24 +21,32 @@ export const Sidebar = ({ onAgentSelect }: SidebarProps) => {
         <Bot className="w-8 h-8 text-blue-400" />
         <h1 className="text-2xl font-bold text-white">Agentes IA</h1>
       </div>
-      <nav className="flex-1 flex flex-col gap-2">
+      <nav className="flex-1 flex flex-col gap-3">
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.5 }}
+          onClick={() => console.log("Crear nuevo agente")}
+          className="w-full text-left p-3 rounded-lg flex items-center gap-4 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-500/30"
+        >
+          <div className="p-2 bg-white/10 rounded-md">
+            <Plus className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="font-semibold">Crear Agente</p>
+            <p className="text-sm text-blue-400">Empezar desde cero</p>
+          </div>
+        </motion.button>
+
+        <div className="my-2 border-t border-white/10"></div>
+
         {mockAgents.map((agent, index) => (
-          <motion.button
-            key={agent.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 * index + 0.5 }}
-            onClick={() => onAgentSelect(agent)}
-            className="w-full text-left p-3 rounded-lg flex items-center gap-4 hover:bg-white/10 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <div className="p-2 bg-white/10 rounded-md">
-              <Icon name={agent.avatar} className="w-6 h-6 text-gray-300" />
-            </div>
-            <div>
-              <p className="font-semibold text-white">{agent.name}</p>
-              <p className="text-sm text-gray-400">{agent.description}</p>
-            </div>
-          </motion.button>
+          <AgentCard 
+            key={agent.id} 
+            agent={agent} 
+            onClick={onAgentSelect} 
+            index={index} 
+          />
         ))}
       </nav>
       <div className="mt-auto">
