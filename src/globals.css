@@ -119,4 +119,46 @@
   .agent-card:hover::before {
     opacity: 1;
   }
+
+  .context-importer {
+    @apply relative bg-black/20 border border-white/10 rounded-lg p-4 transition-all duration-300;
+  }
+
+  .context-importer:hover {
+    @apply border-blue-400/50;
+  }
+
+  .context-importer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from var(--angle), transparent 20%, #0ea5e9, #6366f1, transparent 80%);
+    -webkit-mask: 
+       linear-gradient(#fff 0 0) content-box, 
+       linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin 5s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+  }
+
+  .context-importer:hover::before {
+    opacity: 1;
+  }
+
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes spin {
+    to {
+      --angle: 360deg;
+    }
+  }
 }

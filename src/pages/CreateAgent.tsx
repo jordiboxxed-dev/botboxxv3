@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { showError, showSuccess } from "@/utils/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Link as LinkIcon, FileUp } from "lucide-react";
+import { motion } from "framer-motion";
 
 const CreateAgent = () => {
   const navigate = useNavigate();
@@ -15,7 +16,61 @@ const CreateAgent = () => {
   const [companyName, setCompanyName] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [businessContext, setBusinessContext] = useState("");
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [url, setUrl] = useState("");
+
+  const handleFetchUrl = async () => {
+    if (!url.trim()) {
+      showError("Por favor, introduce una URL válida.");
+      return;
+    }
+    setIsFetchingUrl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-url-content", {
+        body: { url },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
+      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${url} ---\n${data.content}`.trim());
+      showSuccess("Contenido de la URL importado.");
+      setUrl("");
+    } catch (err) {
+      console.error(err);
+      showError((err as Error).message || "No se pudo importar el contenido de la URL.");
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
+      setBusinessContext(prev => `${prev}\n\n--- Contenido de ${file.name} ---\n${data.content}`.trim());
+      showSuccess(`Contenido de ${file.name} importado.`);
+    } catch (err) {
+      console.error(err);
+      showError((err as Error).message || "No se pudo procesar el archivo.");
+    } finally {
+      setIsUploadingFile(false);
+      event.target.value = ""; // Reset file input
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,9 +112,11 @@ const CreateAgent = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <div className="w-full max-w-2xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-3xl font-bold text-white mb-2">Crear Nuevo Agente</h1>
-        <p className="text-gray-400 mb-6">Dale vida a tu asistente de IA personalizado.</p>
+      <div className="w-full max-w-3xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <h1 className="text-3xl font-bold text-white mb-2">Crear Nuevo Agente</h1>
+          <p className="text-gray-400 mb-8">Dale vida a tu asistente de IA personalizado.</p>
+        </motion.div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -79,12 +136,31 @@ const CreateAgent = () => {
             <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
             <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 mt-2 min-h-[120px]" />
           </div>
-          <div>
-            <Label htmlFor="businessContext" className="text-white">Contexto de Negocio Inicial (Opcional)</Label>
-            <Textarea id="businessContext" value={businessContext} onChange={(e) => setBusinessContext(e.target.value)} placeholder="Pega aquí información clave sobre tu negocio: productos, servicios, horarios, etc." className="bg-black/20 border-white/20 mt-2 min-h-[150px]" />
+          
+          <div className="space-y-4">
+            <Label className="text-white">Contexto de Negocio</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="context-importer">
+                <div className="flex items-center gap-2">
+                  <Input type="url" placeholder="Importar desde URL" value={url} onChange={(e) => setUrl(e.target.value)} className="bg-black/30 border-white/20 text-white placeholder:text-gray-500 flex-1" disabled={isFetchingUrl} />
+                  <Button type="button" onClick={handleFetchUrl} disabled={isFetchingUrl} size="icon" variant="ghost">
+                    {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="context-importer">
+                <label className="flex items-center justify-center gap-2 cursor-pointer text-white h-full">
+                  {isUploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileUp className="w-5 h-5" />}
+                  <span>{isUploadingFile ? 'Procesando...' : 'Cargar Archivo (PDF, DOCX, TXT)'}</span>
+                  <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt" disabled={isUploadingFile} />
+                </label>
+              </div>
+            </div>
+            <Textarea value={businessContext} onChange={(e) => setBusinessContext(e.target.value)} placeholder="Pega aquí información clave sobre tu negocio o usa las opciones de arriba para llenarlo automáticamente." className="bg-black/20 border-white/20 mt-2 min-h-[150px]" />
           </div>
+
           <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || isFetchingUrl || isUploadingFile}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {isLoading ? "Creando..." : "Crear Agente"}
             </Button>
