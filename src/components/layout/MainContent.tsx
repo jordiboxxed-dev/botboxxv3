@@ -1,7 +1,8 @@
-import { Agent } from "@/data/mock-agents";
+import { Agent as DbAgent } from "./AppLayout";
+import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
 import { Bot, Info, Link, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+type Agent = DbAgent | MockAgent;
 
 interface MainContentProps {
   selectedAgent: Agent | null;
@@ -25,6 +28,15 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
   const [businessContext, setBusinessContext] = useState("");
   const [url, setUrl] = useState("");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+
+  useEffect(() => {
+    // Cuando el agente cambia, reseteamos el chat y el contexto
+    setMessages([]);
+    const initialContext = selectedAgent && 'business_context' in selectedAgent 
+      ? selectedAgent.business_context || "" 
+      : "";
+    setBusinessContext(initialContext);
+  }, [selectedAgent]);
 
   const handleFetchUrl = async () => {
     if (!url.trim()) {
@@ -63,8 +75,9 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
     setIsLoading(true);
 
     try {
+      const systemPrompt = ('systemPrompt' in selectedAgent ? selectedAgent.systemPrompt : selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
       const { data, error } = await supabase.functions.invoke("ask-gemini", {
-        body: { prompt, context: businessContext, systemPrompt: selectedAgent.systemPrompt },
+        body: { prompt, context: businessContext, systemPrompt },
       });
 
       if (error) throw new Error(error.message);
@@ -138,8 +151,9 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400">
           <Bot className="w-24 h-24 mb-4 text-gray-500" />
-          <h2 className="text-2xl font-bold text-white">Bienvenido</h2>
+          <h2 className="text-2xl font-bold text-white">Bienvenido a tus Agentes</h2>
           <p>Selecciona un agente de la lista para comenzar a chatear.</p>
+          <p className="text-sm mt-4">O <Link to="/create-agent" className="text-blue-400 underline">crea uno nuevo</Link>.</p>
         </div>
       )}
     </motion.main>

@@ -1,15 +1,21 @@
-import { mockAgents, Agent } from "@/data/mock-agents";
+import { mockAgents, Agent as MockAgent } from "@/data/mock-agents";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, Plus } from "lucide-react";
+import { LogOut, Bot, Plus, LayoutTemplate } from "lucide-react";
 import { motion } from "framer-motion";
 import { AgentCard } from "@/components/agents/AgentCard";
+import { Agent } from "./AppLayout"; // Importar el tipo de agente de la DB
+import { Link, useNavigate } from "react-router-dom";
 
 interface SidebarProps {
-  onAgentSelect: (agent: Agent) => void;
+  userAgents: Agent[];
+  onAgentSelect: (agent: Agent | MockAgent) => void;
+  activeAgentId?: string;
 }
 
-export const Sidebar = ({ onAgentSelect }: SidebarProps) => {
+export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId }: SidebarProps) => {
+  const navigate = useNavigate();
+
   return (
     <motion.aside
       initial={{ x: "-100%" }}
@@ -17,16 +23,17 @@ export const Sidebar = ({ onAgentSelect }: SidebarProps) => {
       transition={{ duration: 0.5, ease: "easeInOut" }}
       className="w-80 h-screen p-4 flex flex-col bg-black/30 backdrop-blur-lg border-r border-white/10"
     >
-      <div className="flex items-center gap-3 mb-8">
+      <Link to="/dashboard" className="flex items-center gap-3 mb-8">
         <Bot className="w-8 h-8 text-blue-400" />
         <h1 className="text-2xl font-bold text-white">Agentes IA</h1>
-      </div>
-      <nav className="flex-1 flex flex-col gap-3">
+      </Link>
+      
+      <nav className="flex-1 flex flex-col gap-3 overflow-y-auto">
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.5 }}
-          onClick={() => console.log("Crear nuevo agente")}
+          onClick={() => navigate('/create-agent')}
           className="w-full text-left p-3 rounded-lg flex items-center gap-4 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-500/30"
         >
           <div className="p-2 bg-white/10 rounded-md">
@@ -39,16 +46,32 @@ export const Sidebar = ({ onAgentSelect }: SidebarProps) => {
         </motion.button>
 
         <div className="my-2 border-t border-white/10"></div>
+        <h2 className="text-sm font-semibold text-gray-400 px-2 mb-2">Mis Agentes</h2>
+        
+        {userAgents.length > 0 ? userAgents.map((agent, index) => (
+          <Link to={`/agent/${agent.id}`} key={agent.id} className={`rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
+            <AgentCard 
+              agent={{
+                ...agent,
+                description: agent.description || '',
+                avatar: 'bot',
+                systemPrompt: agent.system_prompt || ''
+              }}
+              onClick={() => {}} // El Link ya maneja la navegación
+              index={index} 
+            />
+          </Link>
+        )) : (
+          <p className="text-sm text-gray-500 text-center px-4">No has creado ningún agente todavía.</p>
+        )}
 
-        {mockAgents.map((agent, index) => (
-          <AgentCard 
-            key={agent.id} 
-            agent={agent} 
-            onClick={onAgentSelect} 
-            index={index} 
-          />
-        ))}
+        <div className="my-2 border-t border-white/10"></div>
+        <Link to="/templates" className="text-sm font-semibold text-gray-400 px-2 mb-2 flex items-center gap-2 hover:text-white">
+          <LayoutTemplate className="w-4 h-4" />
+          <span>Explorar Plantillas</span>
+        </Link>
       </nav>
+
       <div className="mt-auto">
         <Button
           variant="ghost"

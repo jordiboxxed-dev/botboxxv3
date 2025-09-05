@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { SkeletonLoader } from "@/components/layout/SkeletonLoader";
 import { useState, useEffect } from "react";
 
-const Index = () => {
+const Templates = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -17,4 +17,4 @@ const Index = () => {
   return isLoading ? <SkeletonLoader /> : <AppLayout />;
 };
 
-export default Index;
+export default Templates;
