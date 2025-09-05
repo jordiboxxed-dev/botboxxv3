@@ -20,12 +20,13 @@ export const ChatInput = ({ onSendMessage, isLoading }: ChatInputProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-4 p-4">
+    <form onSubmit={handleSubmit} className="flex items-center gap-4 p-4 bg-black/20 border-t border-white/10">
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="Escribe tu mensaje aquí..."
-        className="flex-1 bg-black/20 border-white/20 text-white placeholder:text-gray-500 rounded-lg resize-none"
+        className="flex-1 bg-black/30 border-white/20 text-white placeholder:text-gray-500 rounded-lg resize-none min-h-[60px] max-h-[120px]"
+        disabled={isLoading}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -33,7 +34,12 @@ export const ChatInput = ({ onSendMessage, isLoading }: ChatInputProps) => {
           }
         }}
       />
-      <Button type="submit" disabled={isLoading || !message.trim()} size="icon" className="rounded-full">
+      <Button 
+        type="submit" 
+        disabled={isLoading || !message.trim()} 
+        size="icon" 
+        className="rounded-full h-12 w-12"
+      >
         <Send className="w-5 h-5" />
       </Button>
     </form>

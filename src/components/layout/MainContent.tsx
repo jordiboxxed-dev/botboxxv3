@@ -206,8 +206,12 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
         <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400">
           <Bot className="w-24 h-24 mb-4 text-gray-500" />
           <h2 className="text-2xl font-bold text-white">Bienvenido a tus Agentes</h2>
-          <p>Selecciona un agente de la lista para comenzar a chatear.</p>
-          <p className="text-sm mt-4">O <Link to="/create-agent" className="text-blue-400 underline">crea uno nuevo</Link>.</p>
+          <p className="mb-4">Selecciona un agente de la lista para comenzar a chatear.</p>
+          <Button asChild>
+            <Link to="/create-agent" className="text-white">
+              Crear un nuevo agente
+            </Link>
+          </Button>
         </div>
       )}
     </motion.main>

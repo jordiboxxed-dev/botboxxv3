@@ -84,7 +84,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat 
         </Link>
       </nav>
 
-      <div className="mt-auto">
+      <div className="mt-auto pt-4 border-t border-white/10">
         <Button
           variant="ghost"
           onClick={() => supabase.auth.signOut()}
