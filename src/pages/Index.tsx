@@ -1,19 +1,20 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
-import { MadeWithDyad } from "@/components/made-with-dyad";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { SkeletonLoader } from "@/components/layout/SkeletonLoader";
+import { useState, useEffect } from "react";
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
-        </p>
-      </div>
-      <MadeWithDyad />
-    </div>
-  );
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simula la carga de datos
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500); // 1.5 segundos de carga simulada
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return isLoading ? <SkeletonLoader /> : <AppLayout />;
 };
 
 export default Index;
