@@ -18,17 +18,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // Fetch all users
-    const { data: usersData, error: usersError } = await supabaseAdmin
-      .from('users')
-      .select('id, email, created_at')
-      .order('created_at', { ascending: false });
+    // Correctly fetch all users using the admin API
+    const { data: { users: usersData }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
 
     if (usersError) throw usersError;
 
-    const userIds = usersData.map(u => u.id);
-
-    // Fetch all agents and group by user
+    // Fetch all agents
     const { data: agentsData, error: agentsError } = await supabaseAdmin
       .from('agents')
       .select('user_id');
@@ -40,7 +35,7 @@ serve(async (req) => {
       return acc;
     }, {});
 
-    // Fetch all messages (private and public) and group by user
+    // Fetch all messages (private and public)
     const { data: privateMessages, error: privateMessagesError } = await supabaseAdmin
       .from('messages')
       .select('user_id');
@@ -58,7 +53,9 @@ serve(async (req) => {
       messageCounts[msg.user_id] = (messageCounts[msg.user_id] || 0) + 1;
     });
     publicConversations.forEach(conv => {
-      messageCounts[conv.user_id] = (messageCounts[conv.user_id] || 0) + conv.public_messages.length;
+      // @ts-ignore
+      const messageCount = conv.public_messages ? conv.public_messages.length : 0;
+      messageCounts[conv.user_id] = (messageCounts[conv.user_id] || 0) + messageCount;
     });
 
     // Combine data
@@ -71,7 +68,11 @@ serve(async (req) => {
     }));
 
     const totalAgents = agentsData.length;
-    const totalMessages = privateMessages.length + publicConversations.reduce((sum, conv) => sum + conv.public_messages.length, 0);
+    const totalMessages = privateMessages.length + publicConversations.reduce((sum, conv) => {
+        // @ts-ignore
+        const messageCount = conv.public_messages ? conv.public_messages.length : 0;
+        return sum + messageCount;
+    }, 0);
 
     const responsePayload = {
       totalUsers: usersData.length,
@@ -86,6 +87,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error("Error in get-admin-analytics:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
