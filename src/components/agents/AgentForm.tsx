@@ -46,20 +46,20 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <Label htmlFor="name" className="text-white">Nombre del Agente</Label>
-          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Asistente de Soporte" className="bg-black/20 border-white/20 mt-2" />
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Asistente de Soporte" className="bg-black/20 border-white/20 text-white mt-2" />
         </div>
         <div>
           <Label htmlFor="companyName" className="text-white">Nombre de la Empresa</Label>
-          <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Ej: Mi Negocio S.A." className="bg-black/20 border-white/20 mt-2" />
+          <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Ej: Mi Negocio S.A." className="bg-black/20 border-white/20 text-white mt-2" />
         </div>
       </div>
       <div>
         <Label htmlFor="description" className="text-white">Descripción Corta</Label>
-        <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="¿Cuál es el propósito principal de este agente?" className="bg-black/20 border-white/20 mt-2" />
+        <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="¿Cuál es el propósito principal de este agente?" className="bg-black/20 border-white/20 text-white mt-2" />
       </div>
       <div>
         <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
-        <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 mt-2 min-h-[120px]" />
+        <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 text-white mt-2 min-h-[120px]" />
       </div>
       
       <div className="flex justify-end gap-4 pt-4">
