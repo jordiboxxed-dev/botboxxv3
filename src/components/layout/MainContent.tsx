@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Info, Link as LinkIcon, Loader2 } from "lucide-react";
+import { Bot, Info, Link as LinkIcon, Loader2, Settings, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -10,8 +10,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Agent = DbAgent | MockAgent;
 
@@ -27,6 +38,7 @@ interface Message {
 const BUSINESS_CONTEXT_LIMIT = 50000;
 
 export const MainContent = ({ selectedAgent }: MainContentProps) => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [businessContext, setBusinessContext] = useState("");
@@ -165,6 +177,17 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
     }
   };
 
+  const handleDeleteAgent = async () => {
+    if (!selectedAgent) return;
+    const { error } = await supabase.from('agents').delete().eq('id', selectedAgent.id);
+    if (error) {
+      showError("Error al eliminar el agente: " + error.message);
+    } else {
+      showSuccess("Agente eliminado correctamente.");
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <motion.main
       initial={{ opacity: 0 }}
@@ -175,9 +198,39 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
       {selectedAgent ? (
         <div className="flex-1 flex flex-row h-full">
           <div className="flex-1 flex flex-col p-6">
-            <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl">
-              <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
-              <p className="text-sm text-gray-400">{selectedAgent.description}</p>
+            <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
+                <p className="text-sm text-gray-400">{selectedAgent.description}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link to={`/agent/${selectedAgent.id}/edit`}>
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                    <Settings className="w-5 h-5" />
+                  </Button>
+                </Link>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500">
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Esto eliminará permanentemente el agente y todos sus mensajes asociados.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAgent} className="bg-red-600 hover:bg-red-700">
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </header>
             <div className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">
               <MessageList messages={messages} isLoading={isLoading} />

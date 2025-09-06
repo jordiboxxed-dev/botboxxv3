@@ -11,6 +11,7 @@ import { supabase } from "./integrations/supabase/client";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CreateAgent from "./pages/CreateAgent";
+import EditAgent from "./pages/EditAgent";
 import { AppLayout } from "./components/layout/AppLayout";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => {
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/create-agent" element={<CreateAgent />} />
                 <Route path="/agent/:agentId" element={<AppLayout />} />
+                <Route path="/agent/:agentId/edit" element={<EditAgent />} />
                 <Route path="*" element={<NotFound />} />
               </>
             )}
