@@ -27,15 +27,17 @@ interface AddSourceDialogProps {
 export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: AddSourceDialogProps) => {
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const [name, setName] = useState("");
-  const [content, setContent] = useState("");
+  const [textContent, setTextContent] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = () => {
     setSourceType(null);
     setIsLoading(false);
     setName("");
-    setContent("");
+    setTextContent("");
+    setStatusMessage("");
   };
 
   const handleClose = () => {
@@ -49,6 +51,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
     if (!file) return;
 
     setIsLoading(true);
+    setStatusMessage("Extrayendo texto del archivo...");
     setName(file.name);
     try {
       const blob = new Blob([file], { type: file.type });
@@ -60,44 +63,48 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
       
-      setContent(data.content);
+      setTextContent(data.content);
       showSuccess(`Contenido de ${file.name} extraído.`);
     } catch (err) {
       showError((err as Error).message || "No se pudo procesar el archivo.");
       resetState();
     } finally {
       setIsLoading(false);
+      setStatusMessage("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const handleUrlFetch = async () => {
-    if (!content.trim()) {
+    if (!textContent.trim()) {
       showError("Por favor, introduce una URL válida.");
       return;
     }
     setIsLoading(true);
+    setStatusMessage("Importando contenido de la URL...");
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-url-content", { body: { url: content } });
+      const { data, error } = await supabase.functions.invoke("fetch-url-content", { body: { url: textContent } });
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
       
-      setContent(data.content);
-      setName(new URL(content).hostname);
+      setTextContent(data.content);
+      setName(new URL(textContent).hostname);
       showSuccess("Contenido de la URL importado.");
     } catch (err) {
       showError((err as Error).message || "No se pudo importar el contenido de la URL.");
     } finally {
       setIsLoading(false);
+      setStatusMessage("");
     }
   };
 
   const handleSubmit = async () => {
-    if (!name || !content || !sourceType) {
+    if (!name || !textContent || !sourceType) {
       showError("El nombre y el contenido son obligatorios.");
       return;
     }
     setIsLoading(true);
+    setStatusMessage("Guardando fuente de conocimiento...");
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         showError("Usuario no autenticado.");
@@ -105,21 +112,39 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         return;
     }
 
-    const { error } = await supabase.from("knowledge_sources").insert({
+    // 1. Crear la fuente de conocimiento (sin el contenido)
+    const { data: sourceData, error: sourceError } = await supabase.from("knowledge_sources").insert({
         user_id: user.id,
         agent_id: agentId,
         name,
         type: sourceType,
-        content,
-    });
+    }).select().single();
 
-    setIsLoading(false);
-    if (error) {
-        showError("Error al guardar la fuente de conocimiento: " + error.message);
-    } else {
-        showSuccess("Fuente de conocimiento añadida.");
-        onSourceAdded();
-        handleClose();
+    if (sourceError) {
+        setIsLoading(false);
+        showError("Error al guardar la fuente: " + sourceError.message);
+        return;
+    }
+
+    // 2. Llamar a la función de embedding
+    setStatusMessage("Procesando y generando embeddings...");
+    try {
+      const { error: embedError } = await supabase.functions.invoke("embed-and-store", {
+        body: { sourceId: sourceData.id, textContent },
+      });
+
+      if (embedError) throw new Error(embedError.message);
+
+      showSuccess("Fuente de conocimiento añadida y procesada.");
+      onSourceAdded();
+      handleClose();
+    } catch (err) {
+      showError("Error al procesar el conocimiento: " + (err as Error).message);
+      // Opcional: eliminar la fuente creada si el embedding falla
+      await supabase.from("knowledge_sources").delete().eq("id", sourceData.id);
+    } finally {
+      setIsLoading(false);
+      setStatusMessage("");
     }
   };
 
@@ -143,14 +168,14 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         {sourceType === "text" && (
           <div>
             <Label htmlFor="source-content">Contenido</Label>
-            <Textarea id="source-content" value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[150px] bg-black/20 border-white/20 text-white" />
+            <Textarea id="source-content" value={textContent} onChange={(e) => setTextContent(e.target.value)} className="min-h-[150px] bg-black/20 border-white/20 text-white" />
           </div>
         )}
         {sourceType === "url" && (
           <div>
             <Label htmlFor="source-url">URL</Label>
             <div className="flex items-center gap-2">
-              <Input id="source-url" type="url" value={content} onChange={(e) => setContent(e.target.value)} placeholder="https://ejemplo.com/info" className="bg-black/20 border-white/20 text-white" />
+              <Input id="source-url" type="url" value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="https://ejemplo.com/info" className="bg-black/20 border-white/20 text-white" />
               <Button onClick={handleUrlFetch} disabled={isLoading} size="icon">
                 {isLoading ? <Loader2 className="animate-spin" /> : <LinkIcon />}
               </Button>
@@ -161,7 +186,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
           <div>
             <Label>Archivo</Label>
             <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx,.txt,text/*" className="text-gray-400 file:text-white" />
-            {content && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
+            {textContent && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
           </div>
         )}
       </div>
@@ -178,11 +203,12 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
           </DialogDescription>
         </DialogHeader>
         {renderContent()}
+        {isLoading && <div className="text-center text-sm text-blue-300 flex items-center justify-center gap-2"><Loader2 className="animate-spin w-4 h-4" /> {statusMessage}</div>}
         <DialogFooter>
           {sourceType && <Button variant="ghost" onClick={() => setSourceType(null)} disabled={isLoading}>Atrás</Button>}
           <Button onClick={handleClose} variant="outline" disabled={isLoading}>Cancelar</Button>
-          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !content || !name} className="text-white">
-            {isLoading ? <Loader2 className="animate-spin" /> : "Guardar Fuente"}
+          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !textContent || !name} className="text-white">
+            {isLoading ? <Loader2 className="animate-spin" /> : "Guardar y Procesar"}
           </Button>}
         </DialogFooter>
       </DialogContent>

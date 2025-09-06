@@ -21,7 +21,6 @@ export interface KnowledgeSource {
   id: string;
   name: string;
   type: "text" | "url" | "file";
-  content: string;
   created_at: string;
 }
 
@@ -39,7 +38,7 @@ export const KnowledgeSourceManager = ({ agentId, onSourcesChange }: KnowledgeSo
     setIsLoading(true);
     const { data, error } = await supabase
       .from("knowledge_sources")
-      .select("*")
+      .select("id, name, type, created_at")
       .eq("agent_id", agentId)
       .order("created_at", { ascending: false });
 
@@ -60,6 +59,7 @@ export const KnowledgeSourceManager = ({ agentId, onSourcesChange }: KnowledgeSo
   }, [agentId]);
 
   const handleDeleteSource = async (sourceId: string) => {
+    // La eliminación en cascada se encargará de los chunks
     const { error } = await supabase.from("knowledge_sources").delete().eq("id", sourceId);
     if (error) {
       showError("Error al eliminar la fuente: " + error.message);
@@ -109,7 +109,7 @@ export const KnowledgeSourceManager = ({ agentId, onSourcesChange }: KnowledgeSo
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Eliminar esta fuente?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción es permanente y eliminará "{source.name}" del conocimiento del agente.
+                      Esta acción es permanente y eliminará "{source.name}" y todo su conocimiento procesado del agente.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

@@ -106,10 +106,14 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
     try {
       const systemPrompt = ('systemPrompt' in selectedAgent ? selectedAgent.systemPrompt : selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
       const history = currentMessages.slice(0, -1);
-      const combinedContext = knowledgeSources.map(s => `--- Contenido de ${s.name} ---\n${s.content}`).join("\n\n");
 
       const { data, error } = await supabase.functions.invoke("ask-gemini", {
-        body: { prompt, history, context: combinedContext, systemPrompt },
+        body: { 
+          agentId: selectedAgent.id,
+          prompt, 
+          history, 
+          systemPrompt 
+        },
       });
 
       if (error) throw new Error(error.message);

@@ -26,50 +26,60 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 1. Fetch agent details (including owner's user_id)
+    // 1. Fetch agent details
     const { data: agentData, error: agentError } = await supabaseAdmin
       .from("agents")
       .select("system_prompt, user_id")
       .eq("id", agentId)
       .single();
-
     if (agentError) throw new Error("No se pudo encontrar el agente.");
     const { system_prompt: systemPrompt, user_id: agentOwnerId } = agentData;
 
-    // 2. Upsert conversation to ensure it exists
-    const { error: convError } = await supabaseAdmin
-      .from("public_conversations")
-      .upsert({ id: conversationId, agent_id: agentId, user_id: agentOwnerId });
-
-    if (convError) throw new Error("No se pudo guardar la sesión de conversación.");
+    // 2. Upsert conversation
+    await supabaseAdmin.from("public_conversations").upsert({ id: conversationId, agent_id: agentId, user_id: agentOwnerId });
 
     // 3. Save user's message
-    await supabaseAdmin.from("public_messages").insert({
-      conversation_id: conversationId,
-      role: "user",
-      content: prompt,
-    });
+    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "user", content: prompt });
 
-    // 4. Fetch knowledge sources
+    // 4. Fetch knowledge sources for this agent
     const { data: sources, error: sourcesError } = await supabaseAdmin
       .from("knowledge_sources")
-      .select("name, content")
+      .select("id")
       .eq("agent_id", agentId);
+    if (sourcesError) throw sourcesError;
+    const sourceIds = sources.map(s => s.id);
 
-    if (sourcesError) throw new Error("Error al obtener el conocimiento del agente.");
-    const context = sources.map(s => `--- Contexto de ${s.name} ---\n${s.content}`).join("\n\n");
+    let context = "No se encontró información relevante en la base de conocimiento.";
+    if (sourceIds.length > 0) {
+        // 5. Generate embedding for the user's prompt
+        const promptEmbedding = await embeddingModel.embedContent(prompt);
 
-    // 5. Call Gemini API
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // 6. Search for relevant chunks
+        const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
+            query_embedding: promptEmbedding.embedding.values,
+            match_threshold: 0.7,
+            match_count: 5,
+            source_ids: sourceIds
+        });
+        if (matchError) throw matchError;
+
+        if (chunks && chunks.length > 0) {
+            context = chunks.map(c => c.content).join("\n\n---\n\n");
+        }
+    }
+
+    // 7. Call Gemini with relevant context
     const formattedHistory = (history || []).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
-    const chat = model.startChat({
+    const chat = chatModel.startChat({
       history: [
-        { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto del Negocio:**\n${context}` }] },
+        { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante:**\n${context}` }] },
         { role: "model", parts: [{ text: "Entendido. Estoy listo para ayudar." }] },
         ...formattedHistory,
       ],
@@ -78,12 +88,8 @@ serve(async (req) => {
     const response = await result.response;
     const text = response.text();
 
-    // 6. Save assistant's message
-    await supabaseAdmin.from("public_messages").insert({
-      conversation_id: conversationId,
-      role: "assistant",
-      content: text,
-    });
+    // 8. Save assistant's message
+    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: text });
 
     return new Response(JSON.stringify({ response: text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
