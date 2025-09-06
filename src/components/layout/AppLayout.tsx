@@ -15,6 +15,9 @@ export interface Agent {
   description: string | null;
   company_name: string | null;
   system_prompt: string | null;
+  widget_color: string | null;
+  widget_welcome_message: string | null;
+  widget_position: string | null;
 }
 
 export const AppLayout = () => {

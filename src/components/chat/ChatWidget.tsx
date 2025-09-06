@@ -13,9 +13,12 @@ interface Message {
   content: string;
 }
 
-interface AgentInfo {
+interface AgentConfig {
   name: string;
   company_name: string | null;
+  widget_color: string;
+  widget_welcome_message: string;
+  widget_position: 'left' | 'right';
 }
 
 export const ChatWidget = () => {
@@ -23,23 +26,23 @@ export const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
 
   useEffect(() => {
     if (!agentId) return;
 
-    const fetchAgentInfo = async () => {
+    const fetchAgentConfig = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("get-public-agent-name", {
+        const { data, error } = await supabase.functions.invoke("get-public-agent-config", {
           body: { agentId },
         });
 
         if (error) throw error;
         if (data.error) throw new Error(data.error);
 
-        setAgentInfo(data);
+        setAgentConfig(data);
         setMessages([
-          { role: "assistant", content: `¡Hola! Soy ${data.name}. ¿Cómo puedo ayudarte hoy?` }
+          { role: "assistant", content: data.widget_welcome_message || `¡Hola! Soy ${data.name}. ¿Cómo puedo ayudarte hoy?` }
         ]);
       } catch (err) {
         console.error("Error fetching agent info:", err);
@@ -48,7 +51,7 @@ export const ChatWidget = () => {
       }
     };
 
-    fetchAgentInfo();
+    fetchAgentConfig();
   }, [agentId]);
 
   const handleSendMessage = async (prompt: string) => {
@@ -81,12 +84,15 @@ export const ChatWidget = () => {
     }
   };
 
-  if (!agentId) {
+  if (!agentId || !agentConfig) {
     return null;
   }
 
+  const widgetPositionClass = agentConfig.widget_position === 'left' ? 'left-4' : 'right-4';
+  const widgetColorStyle = { backgroundColor: agentConfig.widget_color };
+
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className={`fixed bottom-4 z-50 ${widgetPositionClass}`}>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -96,17 +102,20 @@ export const ChatWidget = () => {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100vh-5rem)] max-h-[600px] bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
           >
-            <header className="p-4 bg-black/20 flex items-center justify-between border-b border-white/10 flex-shrink-0">
+            <header 
+              className="p-4 flex items-center justify-between border-b border-white/10 flex-shrink-0"
+              style={widgetColorStyle}
+            >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-full">
+                <div className="p-2 bg-white/20 rounded-full">
                   <Bot className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white">{agentInfo?.name || "Chat"}</h3>
-                  <p className="text-xs text-gray-400">{agentInfo?.company_name || "En línea"}</p>
+                  <h3 className="font-bold text-white">{agentConfig?.name || "Chat"}</h3>
+                  <p className="text-xs text-white/80">{agentConfig?.company_name || "En línea"}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white">
                 <X className="w-5 h-5" />
               </Button>
             </header>
@@ -124,8 +133,9 @@ export const ChatWidget = () => {
         <Button
           onClick={() => setIsOpen(!isOpen)}
           className="w-16 h-16 rounded-full shadow-lg flex items-center justify-center"
+          style={widgetColorStyle}
         >
-          {isOpen ? <X className="w-8 h-8" /> : <MessageSquare className="w-8 h-8" />}
+          {isOpen ? <X className="w-8 h-8 text-white" /> : <MessageSquare className="w-8 h-8 text-white" />}
         </Button>
       </motion.div>
     </div>

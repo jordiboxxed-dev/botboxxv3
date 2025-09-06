@@ -26,7 +26,7 @@ serve(async (req) => {
 
     const { data, error } = await supabaseAdmin
       .from("agents")
-      .select("name, company_name")
+      .select("name, company_name, widget_color, widget_welcome_message, widget_position")
       .eq("id", agentId)
       .single();
 
