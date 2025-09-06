@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bot, PlusCircle } from "lucide-react";
+import { Bot, PlusCircle, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { AnalyticsDashboard } from "@/components/dashboard/AnalyticsDashboard";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const blueCardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.4)" });
@@ -17,10 +18,18 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-8"
+        className="text-center mb-8 w-full max-w-4xl"
       >
-        <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
-        <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
+        <div className="flex justify-between items-center">
+          <div className="text-left">
+            <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
+            <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
+          </div>
+          <Button variant="outline" onClick={() => supabase.auth.signOut()}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar Sesión
+          </Button>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
