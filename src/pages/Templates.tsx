@@ -6,39 +6,50 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { mockAgents } from "@/data/mock-agents";
 import { showError, showSuccess } from "@/utils/toast";
-import { Plus, ArrowLeft, Bot } from "lucide-react";
+import { Plus, ArrowLeft, Bot, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Templates = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [userAgents, setUserAgents] = useState<any[]>([]);
 
+  const fetchUserAgents = async () => {
+    setIsLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error("Error fetching agents:", error);
+      showError("Error al cargar los agentes.");
+    } else {
+      setUserAgents(data || []);
+    }
+    
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const fetchUserAgents = async () => {
-      setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error("Error fetching agents:", error);
-        showError("Error al cargar los agentes.");
-      } else {
-        setUserAgents(data || []);
-      }
-      
-      setIsLoading(false);
-    };
-
     fetchUserAgents();
   }, [navigate]);
 
@@ -57,7 +68,6 @@ const Templates = () => {
           name: `Copia de ${template.name}`,
           description: template.description,
           system_prompt: template.systemPrompt,
-          business_context: ""
         })
         .select()
         .single();
@@ -69,6 +79,16 @@ const Templates = () => {
     } catch (error) {
       console.error("Error creating agent from template:", error);
       showError("Error al crear el agente desde la plantilla.");
+    }
+  };
+
+  const handleDeleteAgent = async (agentId: string) => {
+    const { error } = await supabase.from('agents').delete().eq('id', agentId);
+    if (error) {
+      showError("Error al eliminar el agente: " + error.message);
+    } else {
+      showSuccess("Agente eliminado correctamente.");
+      fetchUserAgents(); // Re-fetch agents to update the list
     }
   };
 
@@ -123,20 +143,40 @@ const Templates = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="bg-black/30 rounded-xl p-4 border border-white/10 hover:border-blue-400 transition-all duration-200 flex items-center justify-between"
                 >
-                  <Link to={`/agent/${agent.id}`} className="block">
-                    <div className="bg-black/30 rounded-xl p-4 border border-white/10 hover:border-blue-400 transition-all duration-200">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white/10 rounded-md">
-                          <Bot className="w-6 h-6 text-gray-300" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-white">{agent.name}</h3>
-                          <p className="text-sm text-gray-400 line-clamp-1">{agent.description || 'Sin descripción'}</p>
-                        </div>
+                  <Link to={`/agent/${agent.id}`} className="flex-grow">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white/10 rounded-md">
+                        <Bot className="w-6 h-6 text-gray-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white">{agent.name}</h3>
+                        <p className="text-sm text-gray-400 line-clamp-1">{agent.description || 'Sin descripción'}</p>
                       </div>
                     </div>
                   </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 flex-shrink-0 ml-2">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción eliminará permanentemente el agente "{agent.name}" y todos sus datos asociados.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteAgent(agent.id)} className="bg-red-600 hover:bg-red-700">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </motion.div>
               ))}
             </div>
