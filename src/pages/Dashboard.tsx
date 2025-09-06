@@ -27,19 +27,12 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/account">
-              <Button
-                variant="outline"
-                className="text-white border-white/30 hover:bg-white/10"
-              >
+              <Button variant="secondary">
                 <UserCog className="w-4 h-4 mr-2" />
                 Mi Cuenta
               </Button>
             </Link>
-            <Button
-              variant="outline"
-              onClick={() => supabase.auth.signOut()}
-              className="text-white border-white/30 hover:bg-white/10"
-            >
+            <Button variant="secondary" onClick={() => supabase.auth.signOut()}>
               <LogOut className="w-4 h-4 mr-2" />
               Cerrar Sesión
             </Button>

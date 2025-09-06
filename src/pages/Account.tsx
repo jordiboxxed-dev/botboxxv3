@@ -120,22 +120,22 @@ const Account = () => {
         <div className="space-y-8">
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
-              <CardTitle>Información del Perfil</CardTitle>
-              <CardDescription>Actualiza tu nombre y apellido.</CardDescription>
+              <CardTitle className="text-white">Información del Perfil</CardTitle>
+              <CardDescription className="text-gray-400">Actualiza tu nombre y apellido.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-white">Email</Label>
                   <Input id="email" type="email" value={profile?.email || ''} disabled className="bg-black/40 border-white/20 mt-1" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">Nombre</Label>
+                    <Label htmlFor="firstName" className="text-white">Nombre</Label>
                     <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="bg-black/20 border-white/20 mt-1" />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Apellido</Label>
+                    <Label htmlFor="lastName" className="text-white">Apellido</Label>
                     <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="bg-black/20 border-white/20 mt-1" />
                   </div>
                 </div>
@@ -150,17 +150,17 @@ const Account = () => {
 
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
-              <CardTitle>Cambiar Contraseña</CardTitle>
-              <CardDescription>Elige una contraseña nueva y segura.</CardDescription>
+              <CardTitle className="text-white">Cambiar Contraseña</CardTitle>
+              <CardDescription className="text-gray-400">Elige una contraseña nueva y segura.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <Label htmlFor="newPassword">Nueva Contraseña</Label>
+                  <Label htmlFor="newPassword" className="text-white">Nueva Contraseña</Label>
                   <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="bg-black/20 border-white/20 mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor="confirmPassword">Confirmar Nueva Contraseña</Label>
+                  <Label htmlFor="confirmPassword" className="text-white">Confirmar Nueva Contraseña</Label>
                   <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="bg-black/20 border-white/20 mt-1" />
                 </div>
                 <div className="flex justify-end">
