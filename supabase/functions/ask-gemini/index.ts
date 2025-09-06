@@ -1,28 +1,12 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI, FunctionDeclarationSchemaType } from "https://esm.sh/@google/generative-ai";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Helper function to convert DB parameters to Gemini tool format
-const formatToolsForGemini = (dbTools) => {
-  if (!dbTools || dbTools.length === 0) return null;
-  return dbTools.map(tool => ({
-    functionDeclarations: [{
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: FunctionDeclarationSchemaType.OBJECT,
-        properties: tool.parameters.properties || {},
-        required: tool.parameters.required || [],
-      },
-    }]
-  }));
 };
 
 serve(async (req) => {
@@ -71,15 +55,6 @@ serve(async (req) => {
       }
     }
 
-    // 2. Fetch available tools for the agent
-    const { data: agentTools, error: toolsError } = await supabaseAdmin
-      .from("agent_tools")
-      .select("name, description, parameters, endpoint_url")
-      .eq("agent_id", agentId);
-    if (toolsError) throw toolsError;
-
-    const formattedTools = formatToolsForGemini(agentTools);
-
     const chat = generativeModel.startChat({
         history: [
             { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante de la Base de Conocimiento:**\n${context}` }] },
@@ -89,72 +64,17 @@ serve(async (req) => {
                 parts: [{ text: msg.content }]
             }))
         ],
-        tools: formattedTools
     });
 
-    // 3. First call to Gemini
     const result = await chat.sendMessageStream(prompt);
 
-    // 4. Process the response stream
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        
         for await (const chunk of result.stream) {
-          const functionCalls = chunk.functionCalls();
-          
-          if (functionCalls && functionCalls.length > 0) {
-            // 5. Handle function call
-            const call = functionCalls[0];
-            const toolToExecute = agentTools.find(t => t.name === call.name);
-
-            if (toolToExecute) {
-              try {
-                // 6. Execute the tool by calling its endpoint
-                const toolResponse = await fetch(toolToExecute.endpoint_url, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(call.args),
-                });
-
-                if (!toolResponse.ok) {
-                  const errorBody = await toolResponse.text();
-                  throw new Error(`Error en la herramienta (${toolResponse.status}): ${errorBody}`);
-                }
-                const toolResult = await toolResponse.json();
-
-                // 7. Send tool result back to Gemini
-                const result2 = await chat.sendMessageStream([
-                  {
-                    functionResponse: {
-                      name: call.name,
-                      response: toolResult,
-                    },
-                  },
-                ]);
-
-                // 8. Stream the final natural language response
-                for await (const chunk2 of result2.stream) {
-                    const text = chunk2.text();
-                    if (text) {
-                        controller.enqueue(encoder.encode(text));
-                    }
-                }
-
-              } catch (e) {
-                const errorMessage = `Error al ejecutar la herramienta ${call.name}: ${e.message}`;
-                controller.enqueue(encoder.encode(errorMessage));
-              }
-            } else {
-              const errorMessage = `La IA intentó llamar a una herramienta no definida: ${call.name}`;
-              controller.enqueue(encoder.encode(errorMessage));
-            }
-          } else {
-            // It's a direct text response
-            const text = chunk.text();
-            if (text) {
-              controller.enqueue(encoder.encode(text));
-            }
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(encoder.encode(text));
           }
         }
         controller.close();
