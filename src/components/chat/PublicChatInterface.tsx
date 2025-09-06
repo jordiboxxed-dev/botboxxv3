@@ -60,27 +60,62 @@ export const PublicChatInterface = () => {
     }
 
     const userMessage: Message = { role: "user", content: prompt };
-    const currentMessages = [...messages, userMessage];
-    setMessages(currentMessages);
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Add a placeholder for the assistant's message
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
     try {
-      const history = currentMessages.slice(0, -1);
-      const { data, error } = await supabase.functions.invoke("ask-public-agent", {
-        body: { agentId, prompt, history, conversationId: conversationIdRef.current },
+      const history = messages;
+      const response = await fetch(`https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/ask-public-agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ 
+          agentId, 
+          prompt, 
+          history, 
+          conversationId: conversationIdRef.current 
+        }),
       });
 
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
 
-      const assistantMessage: Message = { role: "assistant", content: data.response };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No se pudo leer la respuesta del servidor.");
+      }
+      
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullResponse += chunk;
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1].content = fullResponse;
+          return newMessages;
+        });
+      }
+
     } catch (err) {
       console.error(err);
       const errorMessageText = (err instanceof Error) ? err.message : "Ocurrió un error desconocido.";
       showError(`Error al contactar al agente: ${errorMessageText}`);
-      const errorMessage: Message = { role: "assistant", content: `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}` };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].content = `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}`;
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
     }

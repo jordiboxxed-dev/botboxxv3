@@ -86,13 +86,14 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
     }
 
     const userMessage: Message = { role: "user", content: prompt };
-    const currentMessages = [...messages, userMessage];
-    setMessages(currentMessages);
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        showError("Usuario no encontrado.");
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!user || !session) {
+        showError("Usuario no autenticado. Por favor, inicia sesión de nuevo.");
         setIsLoading(false);
         return;
     }
@@ -104,38 +105,68 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
         content: prompt,
     });
 
+    // Add a placeholder for the assistant's message
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
     try {
       const systemPrompt = ('systemPrompt' in selectedAgent ? selectedAgent.systemPrompt : selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
-      const history = currentMessages.slice(0, -1);
+      const history = messages;
 
-      const { data, error } = await supabase.functions.invoke("ask-gemini", {
-        body: { 
+      const response = await fetch(`https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/ask-gemini`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ 
           agentId: selectedAgent.id,
           prompt, 
           history, 
           systemPrompt 
-        },
+        }),
       });
 
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No se pudo leer la respuesta del servidor.");
+      }
       
-      const assistantMessage: Message = { role: "assistant", content: data.response };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullResponse += chunk;
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1].content = fullResponse;
+          return newMessages;
+        });
+      }
 
       await supabase.from("messages").insert({
         agent_id: selectedAgent.id,
         user_id: user.id,
         role: "assistant",
-        content: data.response,
+        content: fullResponse,
       });
 
     } catch (err) {
       console.error(err);
       const errorMessageText = (err instanceof Error) ? err.message : "Ocurrió un error desconocido.";
       showError(`Error al contactar al agente: ${errorMessageText}`);
-      const errorMessage: Message = { role: "assistant", content: `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}` };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].content = `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}`;
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
     }

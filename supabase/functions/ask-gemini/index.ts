@@ -28,7 +28,6 @@ serve(async (req) => {
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 1. Obtener todas las fuentes de conocimiento para este agente
     const { data: sources, error: sourcesError } = await supabaseAdmin
       .from("knowledge_sources")
       .select("id")
@@ -38,52 +37,52 @@ serve(async (req) => {
 
     let context = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-      // 2. Generar embedding para la pregunta del usuario
       const promptEmbedding = await embeddingModel.embedContent(prompt);
-
-      // 3. Buscar fragmentos relevantes en la base de datos
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.7, // Umbral de similitud
-        match_count: 5,       // Devolver los 5 mejores resultados
+        match_threshold: 0.7,
+        match_count: 5,
         source_ids: sourceIds
       });
-
       if (matchError) throw matchError;
-
       if (chunks && chunks.length > 0) {
         context = chunks.map(c => c.content).join("\n\n---\n\n");
       }
     }
 
-    // 4. Construir el historial y llamar a Gemini con el contexto relevante
     const formattedHistory = (history || []).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
-    const chat = chatModel.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante de la Base de Conocimiento:**\n${context}` }],
-        },
-        {
-          role: "model",
-          parts: [{ text: "Entendido. Estoy listo para ayudar usando solo la información y las instrucciones proporcionadas." }],
-        },
-        ...formattedHistory,
-      ],
+    const fullHistory = [
+      { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante de la Base de Conocimiento:**\n${context}` }] },
+      { role: "model", parts: [{ text: "Entendido. Estoy listo para ayudar usando solo la información y las instrucciones proporcionadas." }] },
+      ...formattedHistory,
+      { role: "user", parts: [{ text: prompt }] }
+    ];
+
+    const result = await chatModel.generateContentStream({
+      contents: fullHistory,
     });
 
-    const result = await chat.sendMessage(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    return new Response(JSON.stringify({ response: text }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(encoder.encode(text));
+          }
+        }
+        controller.close();
+      },
     });
+
+    return new Response(stream, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    });
+
   } catch (error) {
     console.error("Error in ask-gemini function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
