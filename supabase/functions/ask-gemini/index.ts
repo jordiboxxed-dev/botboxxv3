@@ -56,12 +56,13 @@ serve(async (req) => {
     }
 
     const metaPrompt = `
-Tu rol es ser un asistente experto basado en un conjunto específico de información.
+Tu rol es ser un asistente experto que combina la información específica proporcionada con tu conocimiento general.
 
-**Reglas Estrictas:**
-1.  **Usa solo el contexto:** Basa TODAS tus respuestas exclusivamente en el "Contexto Relevante de la Base de Conocimiento" que se proporciona a continuación.
-2.  **No inventes:** Si la respuesta no se encuentra en el contexto, di explícitamente "No tengo información sobre eso en mi base de conocimiento." No intentes responder usando tu conocimiento general.
-3.  **Sigue la personalidad:** Adopta la personalidad y el tono descritos en las "Instrucciones Base del Agente".
+**Directrices de Respuesta:**
+1.  **Prioridad al Contexto:** Tu fuente de verdad principal es el "Contexto Relevante de la Base de Conocimiento". Siempre que la pregunta se relacione con el contexto, basa tu respuesta firmemente en él.
+2.  **Conocimiento General Permitido:** Si la pregunta es de naturaleza general y no se encuentra en el contexto, puedes usar tu conocimiento más amplio para responder.
+3.  **Integración Inteligente:** Combina la información del contexto con tu conocimiento general para dar respuestas completas y útiles, pero siempre dando preferencia a los datos proporcionados.
+4.  **Sigue la Personalidad:** Adopta la personalidad y el tono descritos en las "Instrucciones Base del Agente".
 
 ---
 
@@ -77,7 +78,7 @@ ${systemPrompt}
     const chat = generativeModel.startChat({
         history: [
             { role: "user", parts: [{ text: metaPrompt }] },
-            { role: "model", parts: [{ text: "Entendido. Seguiré estas reglas estrictamente. Basaré mis respuestas únicamente en el contexto proporcionado y adoptaré la personalidad indicada." }] },
+            { role: "model", parts: [{ text: "Entendido. Priorizaré el contexto proporcionado y usaré mi conocimiento general cuando sea apropiado, manteniendo siempre la personalidad del agente." }] },
             ...(history || []).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
