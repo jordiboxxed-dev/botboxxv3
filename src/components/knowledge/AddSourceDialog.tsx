@@ -138,19 +138,19 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       <div className="space-y-4 py-4">
         <div>
           <Label htmlFor="source-name">Nombre de la Fuente</Label>
-          <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" />
+          <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" className="bg-black/20 border-white/20 text-white" />
         </div>
         {sourceType === "text" && (
           <div>
             <Label htmlFor="source-content">Contenido</Label>
-            <Textarea id="source-content" value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[150px]" />
+            <Textarea id="source-content" value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[150px] bg-black/20 border-white/20 text-white" />
           </div>
         )}
         {sourceType === "url" && (
           <div>
             <Label htmlFor="source-url">URL</Label>
             <div className="flex items-center gap-2">
-              <Input id="source-url" type="url" value={content} onChange={(e) => setContent(e.target.value)} placeholder="https://ejemplo.com/info" />
+              <Input id="source-url" type="url" value={content} onChange={(e) => setContent(e.target.value)} placeholder="https://ejemplo.com/info" className="bg-black/20 border-white/20 text-white" />
               <Button onClick={handleUrlFetch} disabled={isLoading} size="icon">
                 {isLoading ? <Loader2 className="animate-spin" /> : <LinkIcon />}
               </Button>
@@ -160,7 +160,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         {sourceType === "file" && (
           <div>
             <Label>Archivo</Label>
-            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx,.txt,text/*" />
+            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx,.txt,text/*" className="text-gray-400 file:text-white" />
             {content && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
           </div>
         )}
@@ -181,7 +181,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         <DialogFooter>
           {sourceType && <Button variant="ghost" onClick={() => setSourceType(null)} disabled={isLoading}>Atrás</Button>}
           <Button onClick={handleClose} variant="outline" disabled={isLoading}>Cancelar</Button>
-          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !content || !name}>
+          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !content || !name} className="text-white">
             {isLoading ? <Loader2 className="animate-spin" /> : "Guardar Fuente"}
           </Button>}
         </DialogFooter>

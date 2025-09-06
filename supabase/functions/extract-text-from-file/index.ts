@@ -15,15 +15,13 @@ serve(async (req) => {
 
   try {
     const contentType = req.headers.get("content-type") || "";
-    
     if (!contentType) {
       throw new Error("El encabezado Content-Type es requerido.");
     }
 
     const arrayBuffer = await req.arrayBuffer();
-    
     if (arrayBuffer.byteLength === 0) {
-      throw new Error("El archivo está vacío.");
+      throw new Error("El archivo está vacío o no se pudo leer.");
     }
 
     let text = "";
@@ -38,14 +36,13 @@ serve(async (req) => {
       const decoder = new TextDecoder("utf-8");
       text = decoder.decode(arrayBuffer);
     } else {
-      throw new Error("Tipo de archivo no soportado. Por favor, sube un PDF, DOCX o TXT.");
+      throw new Error(`Tipo de archivo no soportado: ${contentType}. Por favor, sube un PDF, DOCX o TXT.`);
     }
 
     if (!text || text.trim().length === 0) {
-        throw new Error("No se pudo extraer texto del archivo. Puede que esté vacío o corrupto.");
+        throw new Error("No se pudo extraer texto del archivo. Puede que esté vacío, corrupto o sea una imagen.");
     }
 
-    // Clean up the text by removing extra whitespace while preserving paragraphs
     const cleanedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 
     return new Response(JSON.stringify({ content: cleanedText }), {
@@ -53,10 +50,10 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error("Error extracting text:", error);
+    console.error("Error in extract-text-from-file function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 400, // Use 400 for client-side errors, 500 for server-side
     });
   }
 });

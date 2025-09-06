@@ -66,7 +66,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
         <Button type="button" variant="outline" onClick={() => navigate(-1)} className="border-white/20 text-white hover:bg-white/10">
           Cancelar
         </Button>
-        <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+        <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
           {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...</> : submitButtonText}
         </Button>
       </div>
