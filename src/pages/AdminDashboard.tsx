@@ -99,7 +99,7 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold">Panel de Administrador</h1>
             <p className="text-gray-400">Vista general de la plataforma.</p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+          <Button variant="outline" onClick={() => navigate('/dashboard')} className="text-white border-white/30 hover:bg-white/10">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver al Dashboard
           </Button>
@@ -129,19 +129,19 @@ const AdminDashboard = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-white/20 hover:bg-transparent">
-                    <TableHead className="text-white">Email</TableHead>
-                    <TableHead className="text-white">Fecha de Registro</TableHead>
-                    <TableHead className="text-white text-right">Agentes Creados</TableHead>
-                    <TableHead className="text-white text-right">Mensajes Totales</TableHead>
+                    <TableHead className="text-gray-200">Email</TableHead>
+                    <TableHead className="text-gray-200">Fecha de Registro</TableHead>
+                    <TableHead className="text-gray-200 text-right">Agentes Creados</TableHead>
+                    <TableHead className="text-gray-200 text-right">Mensajes Totales</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.usersWithStats.map((user) => (
                     <TableRow key={user.id} className="border-white/10">
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>{format(new Date(user.created_at), "d 'de' MMMM, yyyy", { locale: es })}</TableCell>
-                      <TableCell className="text-right">{user.agent_count}</TableCell>
-                      <TableCell className="text-right">{user.message_count}</TableCell>
+                      <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
+                      <TableCell className="text-gray-300">{format(new Date(user.created_at), "d 'de' MMMM, yyyy", { locale: es })}</TableCell>
+                      <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
+                      <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -15,6 +15,7 @@ import EditAgent from "./pages/EditAgent";
 import { AppLayout } from "./components/layout/AppLayout";
 import Embed from "./pages/Embed";
 import AdminDashboard from "./pages/AdminDashboard";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +62,14 @@ const App = () => {
                 <Route path="/create-agent" element={<CreateAgent />} />
                 <Route path="/agent/:agentId" element={<AppLayout />} />
                 <Route path="/agent/:agentId/edit" element={<EditAgent />} />
-                <Route path="/admin" element={<AdminDashboard />} />
+                <Route 
+                  path="/admin" 
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
                 <Route path="*" element={<NotFound />} />
               </>
             )}
