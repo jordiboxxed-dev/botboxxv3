@@ -163,19 +163,19 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       <div className="space-y-4 py-4">
         <div>
           <Label htmlFor="source-name">Nombre de la Fuente</Label>
-          <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" className="bg-black/20 border-white/20 text-white" />
+          <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" />
         </div>
         {sourceType === "text" && (
           <div>
             <Label htmlFor="source-content">Contenido</Label>
-            <Textarea id="source-content" value={textContent} onChange={(e) => setTextContent(e.target.value)} className="min-h-[150px] bg-black/20 border-white/20 text-white" />
+            <Textarea id="source-content" value={textContent} onChange={(e) => setTextContent(e.target.value)} className="min-h-[150px]" />
           </div>
         )}
         {sourceType === "url" && (
           <div>
             <Label htmlFor="source-url">URL</Label>
             <div className="flex items-center gap-2">
-              <Input id="source-url" type="url" value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="https://ejemplo.com/info" className="bg-black/20 border-white/20 text-white" />
+              <Input id="source-url" type="url" value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="https://ejemplo.com/info" />
               <Button onClick={handleUrlFetch} disabled={isLoading} size="icon">
                 {isLoading ? <Loader2 className="animate-spin" /> : <LinkIcon />}
               </Button>
@@ -207,7 +207,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         <DialogFooter>
           {sourceType && <Button variant="ghost" onClick={() => setSourceType(null)} disabled={isLoading}>Atrás</Button>}
           <Button onClick={handleClose} variant="outline" disabled={isLoading}>Cancelar</Button>
-          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !textContent || !name} className="text-white">
+          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !textContent || !name}>
             {isLoading ? <Loader2 className="animate-spin" /> : "Guardar y Procesar"}
           </Button>}
         </DialogFooter>
