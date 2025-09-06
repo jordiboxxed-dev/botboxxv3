@@ -121,7 +121,7 @@ const Login = () => {
               }}
               providers={[]}
               theme="dark"
-              redirectTo={`${window.location.origin}/auth/callback`}
+              redirectTo={`https://botboxx-demov2.vercel.app/auth/callback`}
             />
             <div className="text-center text-sm text-gray-400 mt-4">
               ¿No tienes cuenta?{" "}
