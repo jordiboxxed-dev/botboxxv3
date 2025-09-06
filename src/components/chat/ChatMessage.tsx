@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 import { Bot, User } from "lucide-react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -32,7 +34,9 @@ export const ChatMessage = ({ role, content }: ChatMessageProps) => {
           <Bot className="w-5 h-5 text-gray-300" />
         )}
       </div>
-      <p className="text-white whitespace-pre-wrap pt-1">{content}</p>
+      <div className="prose prose-sm prose-invert max-w-none text-white pt-1 w-full">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
     </motion.div>
   );
 };
