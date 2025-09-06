@@ -109,7 +109,10 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const systemPrompt = ('systemPrompt' in selectedAgent ? selectedAgent.systemPrompt : selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
+      const rawSystemPrompt = ('system_prompt' in selectedAgent && selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
+      const companyName = ('company_name' in selectedAgent && selectedAgent.company_name) || "la empresa";
+      const systemPrompt = rawSystemPrompt.replace(/\[Nombre de la Empresa\]/g, companyName);
+      
       const history = messages;
 
       const response = await fetch(`https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/ask-gemini`, {

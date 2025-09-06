@@ -32,11 +32,13 @@ serve(async (req) => {
 
     const { data: agentData, error: agentError } = await supabaseAdmin
       .from("agents")
-      .select("system_prompt, user_id")
+      .select("system_prompt, user_id, company_name")
       .eq("id", agentId)
       .single();
     if (agentError) throw new Error("No se pudo encontrar el agente.");
-    const { system_prompt: systemPrompt, user_id: agentOwnerId } = agentData;
+    
+    const { system_prompt: rawSystemPrompt, user_id: agentOwnerId, company_name: companyName } = agentData;
+    const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
 
     await supabaseAdmin.from("public_conversations").upsert({ id: conversationId, agent_id: agentId, user_id: agentOwnerId });
     await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "user", content: prompt });
