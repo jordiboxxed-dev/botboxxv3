@@ -120,8 +120,8 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
           'apikey': "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5YWdxaGNqZnVodGpvZXFzaHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxMDEwOTksImV4cCI6MjA3MjY3NzA5OX0.b8-BTufObxnbCUaPO9SHeN4pQVJ6fHvTb1NYC1jFKVo",
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ 
           agentId: selectedAgent.id,
