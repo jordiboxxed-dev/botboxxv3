@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
 import React from "react";
+import { AnalyticsDashboard } from "@/components/dashboard/AnalyticsDashboard";
 
 const Dashboard = () => {
   const blueCardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.4)" });
@@ -16,12 +17,18 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-12"
+        className="text-center mb-8"
       >
-        <h1 className="text-4xl font-bold mb-2">Boxxed Agents</h1>
-        <p className="text-lg text-gray-400">Crea o selecciona un agente para comenzar.</p>
+        <h1 className="text-4xl font-bold mb-2">BotBoxx Agents</h1>
+        <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
       </motion.div>
-      
+
+      <AnalyticsDashboard />
+
+      <div className="w-full max-w-4xl mt-8">
+        <div className="my-6 border-t border-white/10"></div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -61,18 +68,6 @@ const Dashboard = () => {
           </Link>
         </motion.div>
       </div>
-      
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-        className="mt-12 text-center"
-      >
-        <Link to="/templates" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
-          <LayoutTemplate className="w-5 h-5" />
-          <span>Ver todos los agentes creados</span>
-        </Link>
-      </motion.div>
     </div>
   );
 };
