@@ -8,6 +8,7 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 import { Button } from "@/components/ui/button";
 import { LogIn, UserPlus } from "lucide-react";
 import { ResendConfirmation } from "@/components/auth/ResendConfirmation";
+import { cn } from "@/lib/utils";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -82,7 +83,9 @@ const Login = () => {
           <Button
             variant={!showRegister ? "default" : "outline"}
             onClick={() => setShowRegister(false)}
-            className="flex-1"
+            className={cn("flex-1", {
+              "text-black": showRegister,
+            })}
           >
             <LogIn className="w-4 h-4 mr-2" />
             Ingresar
@@ -90,7 +93,9 @@ const Login = () => {
           <Button
             variant={showRegister ? "default" : "outline"}
             onClick={() => setShowRegister(true)}
-            className="flex-1"
+            className={cn("flex-1", {
+              "text-black": !showRegister,
+            })}
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Registrarse
