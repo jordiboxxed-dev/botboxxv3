@@ -8,9 +8,10 @@ import { showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { Agent } from "@/components/layout/AppLayout";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 
 interface AgentFormProps {
-  onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at' | 'deleted_at'>) => Promise<void>;
   isLoading: boolean;
   initialData?: Partial<Agent>;
   submitButtonText?: string;
@@ -26,6 +27,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [widgetColor, setWidgetColor] = useState("#3b82f6");
   const [widgetWelcomeMessage, setWidgetWelcomeMessage] = useState("¡Hola! ¿Cómo puedo ayudarte hoy?");
   const [widgetPosition, setWidgetPosition] = useState("right");
+  const [status, setStatus] = useState("active");
   
   useEffect(() => {
     if (initialData) {
@@ -36,6 +38,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetColor(initialData.widget_color || "#3b82f6");
       setWidgetWelcomeMessage(initialData.widget_welcome_message || "¡Hola! ¿Cómo puedo ayudarte hoy?");
       setWidgetPosition(initialData.widget_position || "right");
+      setStatus(initialData.status || "active");
     }
   }, [initialData]);
 
@@ -52,7 +55,8 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       system_prompt: systemPrompt,
       widget_color: widgetColor,
       widget_welcome_message: widgetWelcomeMessage,
-      widget_position: widgetPosition
+      widget_position: widgetPosition,
+      status
     });
   };
 
@@ -128,6 +132,25 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               placeholder="Ej: ¡Hola! Soy tu asistente virtual. ¿En qué puedo ayudarte?" 
               className="bg-black/20 border-white/20 text-white mt-2 min-h-[80px]" 
             />
+          </div>
+        </div>
+      </div>
+
+      <div className="pt-6 border-t border-white/10">
+        <h3 className="text-xl font-semibold text-white mb-2">Estado del Agente</h3>
+        <div className="flex items-center space-x-4 bg-black/20 p-4 rounded-lg">
+          <Switch
+            id="agent-status"
+            checked={status === 'active'}
+            onCheckedChange={(checked) => setStatus(checked ? 'active' : 'inactive')}
+          />
+          <div>
+            <Label htmlFor="agent-status" className="text-white font-medium">
+              Agente {status === 'active' ? 'Activo' : 'Inactivo'}
+            </Label>
+            <p className="text-sm text-gray-400">
+              Los agentes inactivos no funcionarán en páginas públicas o widgets.
+            </p>
           </div>
         </div>
       </div>

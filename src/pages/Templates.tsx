@@ -22,6 +22,7 @@ import {
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
 import React from "react";
+import { Badge } from "@/components/ui/badge";
 
 const Templates = () => {
   const navigate = useNavigate();
@@ -40,7 +41,9 @@ const Templates = () => {
     const { data, error } = await supabase
       .from('agents')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .is('deleted_at', null) // Solo mostrar agentes no eliminados
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error fetching agents:", error);
@@ -71,6 +74,7 @@ const Templates = () => {
           name: `Copia de ${template.name}`,
           description: template.description,
           system_prompt: template.systemPrompt,
+          status: 'active', // Por defecto, los nuevos agentes están activos
         })
         .select()
         .single();
@@ -86,7 +90,11 @@ const Templates = () => {
   };
 
   const handleDeleteAgent = async (agentId: string) => {
-    const { error } = await supabase.from('agents').delete().eq('id', agentId);
+    const { error } = await supabase
+      .from('agents')
+      .update({ deleted_at: new Date().toISOString() }) // Soft delete
+      .eq('id', agentId);
+
     if (error) {
       showError("Error al eliminar el agente: " + error.message);
     } else {
@@ -157,8 +165,13 @@ const Templates = () => {
                       <div className="p-2 bg-white/10 rounded-md">
                         <Bot className="w-6 h-6 text-gray-300" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-white">{agent.name}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-white truncate">{agent.name}</h3>
+                          <Badge variant={agent.status === 'active' ? 'default' : 'secondary'} className={cn(agent.status === 'active' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30')}>
+                            {agent.status === 'active' ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-gray-400 line-clamp-1">{agent.description || 'Sin descripción'}</p>
                       </div>
                     </div>

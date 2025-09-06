@@ -33,10 +33,16 @@ serve(async (req) => {
 
     const { data: agentData, error: agentError } = await supabaseAdmin
       .from("agents")
-      .select("system_prompt, user_id, company_name")
+      .select("system_prompt, user_id, company_name, status, deleted_at")
       .eq("id", agentId)
       .single();
+      
     if (agentError) throw new Error("No se pudo encontrar el agente.");
+    
+    // Verificar si el agente está activo y no ha sido eliminado
+    if (agentData.status !== 'active' || agentData.deleted_at) {
+      throw new Error("Este agente no está activo y no puede recibir mensajes.");
+    }
     
     const { system_prompt: rawSystemPrompt, user_id: agentOwnerId, company_name: companyName } = agentData;
     const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
@@ -56,8 +62,8 @@ serve(async (req) => {
         const promptEmbedding = await embeddingModel.embedContent(prompt);
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
-            match_threshold: 0.6, // Reducido para ser más inclusivo
-            match_count: 20,     // Aumentado para obtener más contexto
+            match_threshold: 0.6,
+            match_count: 20,
             source_ids: sourceIds
         });
         if (matchError) throw matchError;

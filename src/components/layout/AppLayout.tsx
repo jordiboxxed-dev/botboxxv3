@@ -18,6 +18,8 @@ export interface Agent {
   widget_color: string | null;
   widget_welcome_message: string | null;
   widget_position: string | null;
+  status: string;
+  deleted_at: string | null;
 }
 
 export const AppLayout = () => {

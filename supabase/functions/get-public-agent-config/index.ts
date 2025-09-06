@@ -27,11 +27,16 @@ serve(async (req) => {
 
     const { data, error } = await supabaseAdmin
       .from("agents")
-      .select("name, company_name, widget_color, widget_welcome_message, widget_position")
+      .select("name, company_name, widget_color, widget_welcome_message, widget_position, status, deleted_at")
       .eq("id", agentId)
       .single();
 
     if (error) throw error;
+    
+    // Verificar si el agente está activo y no ha sido eliminado
+    if (data.status !== 'active' || data.deleted_at) {
+      throw new Error("Este agente no está disponible públicamente.");
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

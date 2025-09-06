@@ -178,7 +178,11 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
 
   const handleDeleteAgent = async () => {
     if (!selectedAgent) return;
-    const { error } = await supabase.from('agents').delete().eq('id', selectedAgent.id);
+    const { error } = await supabase
+      .from('agents')
+      .update({ deleted_at: new Date().toISOString() }) // Soft delete
+      .eq('id', selectedAgent.id);
+
     if (error) {
       showError("Error al eliminar el agente: " + error.message);
     } else {

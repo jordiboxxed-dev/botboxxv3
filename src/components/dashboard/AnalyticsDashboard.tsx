@@ -42,12 +42,19 @@ export const AnalyticsDashboard = () => {
         return;
       }
 
-      const [agentsRes, messagesRes] = await Promise.all([
-        supabase.from("agents").select("id, name").eq("user_id", user.id),
+      // Contar todos los agentes, incluyendo los soft-deleted
+      const { count: totalAgentsCount, error: agentsCountError } = await supabase
+        .from("agents")
+        .select('*', { count: 'exact', head: true })
+        .eq("user_id", user.id);
+
+      // Obtener solo los agentes activos para el gráfico y el más activo
+      const [activeAgentsRes, messagesRes] = await Promise.all([
+        supabase.from("agents").select("id, name").eq("user_id", user.id).is('deleted_at', null),
         supabase.from("messages").select("agent_id").eq("user_id", user.id),
       ]);
 
-      const agents = agentsRes.data || [];
+      const activeAgents = activeAgentsRes.data || [];
       const messages = messagesRes.data || [];
 
       const messageCounts = messages.reduce((acc, msg) => {
@@ -60,17 +67,17 @@ export const AnalyticsDashboard = () => {
         const mostActiveId = Object.keys(messageCounts).reduce((a, b) =>
           messageCounts[a] > messageCounts[b] ? a : b
         );
-        const activeAgent = agents.find(agent => agent.id === mostActiveId);
+        const activeAgent = activeAgents.find(agent => agent.id === mostActiveId);
         mostActiveAgent = activeAgent ? activeAgent.name : "N/A";
       }
 
       setStats({
-        totalAgents: agents.length,
+        totalAgents: totalAgentsCount || 0,
         totalMessages: messages.length,
         mostActiveAgent,
       });
 
-      const newChartData = agents.map(agent => ({
+      const newChartData = activeAgents.map(agent => ({
         name: agent.name.split(' ').slice(0, 2).join(' '), // Shorten name for chart
         messages: messageCounts[agent.id] || 0,
       }));
@@ -105,7 +112,7 @@ export const AnalyticsDashboard = () => {
       <div>
         <h2 className="text-xl font-semibold text-white mb-4">Resumen de Actividad</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <StatCard title="Agentes Creados" value={stats.totalAgents} icon={<Bot className="h-4 w-4 text-gray-400" />} />
+          <StatCard title="Agentes Creados (Total)" value={stats.totalAgents} icon={<Bot className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Total de Mensajes" value={stats.totalMessages} icon={<MessageSquare className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Agente más Activo" value={stats.mostActiveAgent} icon={<TrendingUp className="h-4 w-4 text-gray-400" />} />
         </div>
@@ -113,7 +120,7 @@ export const AnalyticsDashboard = () => {
 
       <Card className="bg-black/30 border-white/10 text-white">
         <CardHeader>
-          <CardTitle className="text-gray-300">Distribución de Mensajes por Agente</CardTitle>
+          <CardTitle className="text-gray-300">Distribución de Mensajes por Agente (Activos)</CardTitle>
         </CardHeader>
         <CardContent>
           {chartData.length > 0 ? (
