@@ -102,21 +102,33 @@
 }
 
 @layer components {
-  .agent-card::before {
+  .interactive-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease-out;
+  }
+
+  .interactive-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .interactive-card::before {
     content: '';
     position: absolute;
     left: var(--glow-x, 50%);
     top: var(--glow-y, 50%);
-    width: 250px;
-    height: 250px;
-    background: radial-gradient(circle at center, rgba(29, 78, 216, 0.4) 0%, transparent 70%);
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle at center, var(--glow-color, rgba(29, 78, 216, 0.4)) 0%, transparent 70%);
     transform: translate(-50%, -50%);
     opacity: 0;
     transition: opacity 0.4s ease-out;
     pointer-events: none;
+    z-index: 0;
   }
 
-  .agent-card:hover::before {
+  .interactive-card:hover::before {
     opacity: 1;
   }
 

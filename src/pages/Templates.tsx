@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 const Templates = () => {
   const navigate = useNavigate();
@@ -92,6 +95,8 @@ const Templates = () => {
     }
   };
 
+  const cardProps = useInteractiveCard();
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 p-8">
@@ -139,11 +144,13 @@ const Templates = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {userAgents.map((agent, index) => (
                 <motion.div
+                  {...cardProps}
+                  ref={cardProps.ref as React.Ref<HTMLDivElement>}
                   key={agent.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-black/30 rounded-xl p-4 border border-white/10 hover:border-blue-400 transition-all duration-200 flex items-center justify-between"
+                  className={cn(cardProps.className, "bg-black/30 rounded-xl p-4 border border-white/10 hover:border-blue-400 transition-all duration-200 flex items-center justify-between")}
                 >
                   <Link to={`/agent/${agent.id}`} className="flex-grow">
                     <div className="flex items-center gap-3">
@@ -201,25 +208,27 @@ const Templates = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockAgents.map((agent, index) => (
             <motion.div
+              {...cardProps}
+              ref={cardProps.ref as React.Ref<HTMLDivElement>}
               key={agent.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.1 }}
+              className={cn(cardProps.className, "bg-black/30 rounded-xl p-6 border border-white/10 hover:border-blue-400 transition-all duration-200 h-full flex flex-col")}
             >
-              <div className="bg-black/30 rounded-xl p-6 border border-white/10 hover:border-blue-400 transition-all duration-200 h-full flex flex-col">
-                <AgentCard 
-                  agent={agent} 
-                  onClick={() => {}} 
-                  index={index} 
-                />
-                <p className="text-gray-400 text-sm mt-4 mb-6 flex-grow">{agent.description}</p>
-                <Button 
-                  onClick={() => handleCreateFromTemplate(agent)}
-                  className="w-full"
-                >
-                  Usar esta plantilla
-                </Button>
-              </div>
+              <AgentCard 
+                agent={agent} 
+                onClick={() => {}} 
+                index={index} 
+                isInteractive={false}
+              />
+              <p className="text-gray-400 text-sm mt-4 mb-6 flex-grow">{agent.description}</p>
+              <Button 
+                onClick={() => handleCreateFromTemplate(agent)}
+                className="w-full"
+              >
+                Usar esta plantilla
+              </Button>
             </motion.div>
           ))}
         </div>

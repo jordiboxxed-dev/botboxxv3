@@ -2,8 +2,14 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bot, PlusCircle, LayoutTemplate } from "lucide-react";
 import { motion } from "framer-motion";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 const Dashboard = () => {
+  const blueCardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.4)" });
+  const greenCardProps = useInteractiveCard({ glowColor: "rgba(52, 211, 153, 0.4)" });
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
       <motion.div
@@ -23,7 +29,11 @@ const Dashboard = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Link to="/templates" className="block h-full">
-            <div className="bg-black/30 p-8 rounded-xl border border-white/10 hover:border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full">
+            <div 
+              {...blueCardProps}
+              ref={blueCardProps.ref as React.Ref<HTMLDivElement>}
+              className={cn(blueCardProps.className, "bg-black/30 p-8 rounded-xl border border-white/10 hover:border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
+            >
               <Bot className="w-16 h-16 mb-4 text-blue-400" />
               <h2 className="text-2xl font-semibold mb-2">Usar una Plantilla</h2>
               <p className="text-gray-400 mb-6">Comienza rápidamente con uno de nuestros agentes pre-configurados para diferentes industrias.</p>
@@ -38,7 +48,11 @@ const Dashboard = () => {
           transition={{ duration: 0.5, delay: 0.4 }}
         >
           <Link to="/create-agent" className="block h-full">
-            <div className="bg-black/30 p-8 rounded-xl border border-white/10 hover:border-green-400 transition-all duration-300 flex flex-col items-center text-center h-full">
+            <div 
+              {...greenCardProps}
+              ref={greenCardProps.ref as React.Ref<HTMLDivElement>}
+              className={cn(greenCardProps.className, "bg-black/30 p-8 rounded-xl border border-white/10 hover:border-green-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
+            >
               <PlusCircle className="w-16 h-16 mb-4 text-green-400" />
               <h2 className="text-2xl font-semibold mb-2">Crear desde Cero</h2>
               <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento específico de tu negocio.</p>

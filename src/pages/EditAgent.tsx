@@ -6,6 +6,9 @@ import { motion } from "framer-motion";
 import { AgentForm } from "@/components/agents/AgentForm";
 import { Agent } from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 const EditAgent = () => {
   const navigate = useNavigate();
@@ -13,6 +16,7 @@ const EditAgent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [isFetching, setIsFetching] = useState(true);
+  const cardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.5)" });
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -76,7 +80,11 @@ const EditAgent = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <div className="w-full max-w-3xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl">
+      <div 
+        {...cardProps}
+        ref={cardProps.ref as React.Ref<HTMLDivElement>}
+        className={cn(cardProps.className, "w-full max-w-3xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl")}
+      >
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <h1 className="text-3xl font-bold text-white mb-2">Editar Agente</h1>
           <p className="text-gray-400 mb-8">Ajusta la configuración de "{agent?.name}".</p>
