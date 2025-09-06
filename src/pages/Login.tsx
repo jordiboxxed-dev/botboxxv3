@@ -90,7 +90,7 @@ const Login = () => {
           <Button
             variant={showRegister ? "default" : "outline"}
             onClick={() => setShowRegister(true)}
-            className="flex-1 text-white"
+            className="flex-1"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Registrarse
