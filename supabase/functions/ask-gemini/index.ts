@@ -55,10 +55,29 @@ serve(async (req) => {
       }
     }
 
+    const metaPrompt = `
+Tu rol es ser un asistente experto basado en un conjunto específico de información.
+
+**Reglas Estrictas:**
+1.  **Usa solo el contexto:** Basa TODAS tus respuestas exclusivamente en el "Contexto Relevante de la Base de Conocimiento" que se proporciona a continuación.
+2.  **No inventes:** Si la respuesta no se encuentra en el contexto, di explícitamente "No tengo información sobre eso en mi base de conocimiento." No intentes responder usando tu conocimiento general.
+3.  **Sigue la personalidad:** Adopta la personalidad y el tono descritos en las "Instrucciones Base del Agente".
+
+---
+
+**Contexto Relevante de la Base de Conocimiento:**
+${context}
+
+---
+
+**Instrucciones Base del Agente (Personalidad y Tono):**
+${systemPrompt}
+`;
+
     const chat = generativeModel.startChat({
         history: [
-            { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante de la Base de Conocimiento:**\n${context}` }] },
-            { role: "model", parts: [{ text: "Entendido. Estoy listo para ayudar usando solo la información y las instrucciones proporcionadas." }] },
+            { role: "user", parts: [{ text: metaPrompt }] },
+            { role: "model", parts: [{ text: "Entendido. Seguiré estas reglas estrictamente. Basaré mis respuestas únicamente en el contexto proporcionado y adoptaré la personalidad indicada." }] },
             ...(history || []).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
