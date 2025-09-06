@@ -1,17 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { showError, showSuccess } from "@/utils/toast";
-import { Loader2, Link as LinkIcon, FileUp } from "lucide-react";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { showError } from "@/utils/toast";
+import { Loader2 } from "lucide-react";
 import { Agent } from "@/components/layout/AppLayout";
-
-const BUSINESS_CONTEXT_LIMIT = 50000;
 
 interface AgentFormProps {
   onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
@@ -22,83 +17,20 @@ interface AgentFormProps {
 
 export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText = "Crear Agente" }: AgentFormProps) => {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [businessContext, setBusinessContext] = useState("");
   
-  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [url, setUrl] = useState("");
-
   useEffect(() => {
     if (initialData) {
       setName(initialData.name || "");
       setDescription(initialData.description || "");
       setCompanyName(initialData.company_name || "");
       setSystemPrompt(initialData.system_prompt || "");
-      setBusinessContext(initialData.business_context || "");
     }
   }, [initialData]);
-
-  const handleFetchUrl = async () => {
-    if (!url.trim()) {
-      showError("Por favor, introduce una URL válida.");
-      return;
-    }
-    setIsFetchingUrl(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("fetch-url-content", { body: { url } });
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
-
-      const newContent = `${businessContext}\n\n--- Contenido de ${url} ---\n${data.content}`.trim();
-      if (newContent.length <= BUSINESS_CONTEXT_LIMIT) {
-        setBusinessContext(newContent);
-        showSuccess("Contenido de la URL importado.");
-        setUrl("");
-      } else {
-        showError("No se puede añadir el contenido porque excede el límite de caracteres.");
-      }
-    } catch (err) {
-      showError((err as Error).message || "No se pudo importar el contenido de la URL.");
-    } finally {
-      setIsFetchingUrl(false);
-    }
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingFile(true);
-    try {
-      const blob = new Blob([file], { type: file.type });
-      const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
-        body: blob,
-        headers: { "Content-Type": file.type || "application/octet-stream" }
-      });
-
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
-
-      const newContent = `${businessContext}\n\n--- Contenido de ${file.name} ---\n${data.content}`.trim();
-      if (newContent.length <= BUSINESS_CONTEXT_LIMIT) {
-        setBusinessContext(newContent);
-        showSuccess(`Contenido de ${file.name} importado.`);
-      } else {
-        showError("No se puede añadir el contenido porque excede el límite de caracteres.");
-      }
-    } catch (err) {
-      showError((err as Error).message || "No se pudo procesar el archivo.");
-    } finally {
-      setIsUploadingFile(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,13 +38,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       showError("El nombre del agente y las instrucciones base son obligatorios.");
       return;
     }
-    await onSubmit({ name, description, company_name: companyName, system_prompt: systemPrompt, business_context: businessContext });
-  };
-
-  const handleContextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length <= BUSINESS_CONTEXT_LIMIT) {
-      setBusinessContext(e.target.value);
-    }
+    await onSubmit({ name, description, company_name: companyName, system_prompt: systemPrompt });
   };
 
   return (
@@ -135,32 +61,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
         <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
         <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 mt-2 min-h-[120px]" />
       </div>
-      <div className="space-y-2">
-        <Label className="text-white">Contexto de Negocio</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="context-importer">
-            <div className="flex items-center gap-2">
-              <Input type="url" placeholder="Importar desde URL" value={url} onChange={(e) => setUrl(e.target.value)} className="bg-black/30 border-white/20 text-white placeholder:text-gray-500 flex-1" disabled={isFetchingUrl} />
-              <Button type="button" onClick={handleFetchUrl} disabled={isFetchingUrl} size="icon" variant="ghost">
-                {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="context-importer">
-            <label className="flex items-center justify-center gap-2 cursor-pointer text-white h-full">
-              {isUploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileUp className="w-5 h-5" />}
-              <span>Cargar Documento</span>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx,.txt,text/*" className="hidden" />
-            </label>
-          </div>
-        </div>
-        <Textarea value={businessContext} onChange={handleContextChange} placeholder="Información sobre tu negocio, productos, servicios, políticas, etc." className={cn("bg-black/30 border-white/20 text-white placeholder:text-gray-500 min-h-[120px]", businessContext.length >= BUSINESS_CONTEXT_LIMIT && "border-red-500 focus-visible:ring-red-500")} />
-        <div className="text-right text-xs text-gray-400">
-          <span className={cn(businessContext.length > BUSINESS_CONTEXT_LIMIT * 0.9 && 'text-yellow-400', businessContext.length >= BUSINESS_CONTEXT_LIMIT && 'text-red-500 font-bold')}>
-            {businessContext.length.toLocaleString()} / {BUSINESS_CONTEXT_LIMIT.toLocaleString()}
-          </span>
-        </div>
-      </div>
+      
       <div className="flex justify-end gap-4 pt-4">
         <Button type="button" variant="outline" onClick={() => navigate(-1)} className="border-white/20 text-white hover:bg-white/10">
           Cancelar

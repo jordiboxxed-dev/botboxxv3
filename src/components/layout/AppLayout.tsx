@@ -14,7 +14,6 @@ export interface Agent {
   description: string | null;
   company_name: string | null;
   system_prompt: string | null;
-  business_context: string | null;
   // Añade más campos si es necesario
 }
 
