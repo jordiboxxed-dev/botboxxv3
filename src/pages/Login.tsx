@@ -2,12 +2,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { showError } from "@/utils/toast";
+import { handleEmailConfirmation, redirectToDashboard } from "@/utils/auth";
+import { RegisterForm } from "@/components/auth/RegisterForm";
+import { Button } from "@/components/ui/button";
+import { LogIn, UserPlus } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
+  const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
     // Verificar si el usuario ya está autenticado
@@ -34,6 +40,23 @@ const Login = () => {
     };
   }, [navigate]);
 
+  // Manejar la confirmación de email desde la URL
+  useEffect(() => {
+    const processEmailConfirmation = async () => {
+      const params = new URLSearchParams(location.search);
+      const confirmed = await handleEmailConfirmation(params);
+      
+      if (confirmed) {
+        // Pequeño delay para asegurar que la sesión se estableció
+        setTimeout(() => {
+          redirectToDashboard();
+        }, 1000);
+      }
+    };
+
+    processEmailConfirmation();
+  }, [location]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
@@ -53,26 +76,64 @@ const Login = () => {
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight">Bienvenido a BotBoxx</h1>
           <p className="text-gray-400 mt-2">
-            Inicia sesión para acceder a tus agentes de IA
+            {showRegister 
+              ? "Crea una cuenta para comenzar" 
+              : "Inicia sesión para acceder a tus agentes de IA"}
           </p>
         </div>
-        <Auth
-          supabaseClient={supabase}
-          appearance={{ 
-            theme: ThemeSupa,
-            variables: {
-              default: {
-                colors: {
-                  brand: '#3b82f6',
-                  brandAccent: '#2563eb',
+        
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant={!showRegister ? "default" : "outline"}
+            onClick={() => setShowRegister(false)}
+            className="flex-1"
+          >
+            <LogIn className="w-4 h-4 mr-2" />
+            Ingresar
+          </Button>
+          <Button
+            variant={showRegister ? "default" : "outline"}
+            onClick={() => setShowRegister(true)}
+            className="flex-1"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Registrarse
+          </Button>
+        </div>
+        
+        {showRegister ? (
+          <RegisterForm onSwitchToLogin={() => setShowRegister(false)} />
+        ) : (
+          <>
+            <Auth
+              supabaseClient={supabase}
+              appearance={{ 
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: '#3b82f6',
+                      brandAccent: '#2563eb',
+                    }
+                  }
                 }
-              }
-            }
-          }}
-          providers={[]}
-          theme="dark"
-          redirectTo="http://localhost:8080"
-        />
+              }}
+              providers={[]}
+              theme="dark"
+              redirectTo={`${window.location.origin}/auth/callback`}
+            />
+            <div className="text-center text-sm text-gray-400 mt-4">
+              ¿No tienes cuenta?{" "}
+              <button
+                type="button"
+                onClick={() => setShowRegister(true)}
+                className="text-blue-400 hover:text-blue-300 font-medium"
+              >
+                Regístrate aquí
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

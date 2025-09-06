@@ -3,8 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Templates from "./pages/Templates";
-import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./integrations/supabase/client";
@@ -16,6 +14,9 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Embed from "./pages/Embed";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import Templates from "./pages/Templates";
+import NotFound from "./pages/NotFound";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -49,11 +50,18 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Ruta específica para manejo de autenticación */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            
             {/* Publicly accessible embed route */}
             <Route path="/embed/agent/:agentId" element={<Embed />} />
 
             {!session ? (
-              <Route path="*" element={<Login />} />
+              <>
+                <Route path="/" element={<Navigate to="/login" />} />
+                <Route path="*" element={<Login />} />
+              </>
             ) : (
               <>
                 <Route path="/" element={<Navigate to="/dashboard" />} />
