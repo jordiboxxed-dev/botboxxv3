@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Settings, Trash2, Menu, Code } from "lucide-react";
+import { Bot, Settings, Trash2, Menu, Code, MessageCircle, BookOpen } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { KnowledgeSource, KnowledgeSourceManager } from "@/components/knowledge/KnowledgeSourceManager";
 import { EmbedDialog } from "@/components/agents/EmbedDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConversationHistory } from "@/components/agents/ConversationHistory";
 
 type Agent = DbAgent | MockAgent;
 
@@ -208,8 +210,21 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
                 <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
               </div>
             </div>
-            <div className="w-full lg:w-80 p-4 lg:p-6 flex flex-col">
-               <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
+            <div className="w-full lg:w-96 p-4 lg:p-6 flex flex-col">
+              <Tabs defaultValue="knowledge" className="w-full flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="knowledge"><BookOpen className="w-4 h-4 mr-2" />Conocimiento</TabsTrigger>
+                  <TabsTrigger value="conversations"><MessageCircle className="w-4 h-4 mr-2" />Conversaciones</TabsTrigger>
+                </TabsList>
+                <TabsContent value="knowledge" className="flex-1 mt-4">
+                  <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
+                </TabsContent>
+                <TabsContent value="conversations" className="flex-1 mt-2">
+                   <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-lg border border-white/10 rounded-xl h-full">
+                      <ConversationHistory agentId={selectedAgent.id} />
+                   </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
           <EmbedDialog 

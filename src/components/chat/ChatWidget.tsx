@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, X, Bot } from "lucide-react";
@@ -27,6 +27,7 @@ export const ChatWidget = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!agentId) return;
@@ -57,6 +58,10 @@ export const ChatWidget = () => {
   const handleSendMessage = async (prompt: string) => {
     if (!agentId) return;
 
+    if (!conversationIdRef.current) {
+      conversationIdRef.current = crypto.randomUUID();
+    }
+
     const userMessage: Message = { role: "user", content: prompt };
     const currentMessages = [...messages, userMessage];
     setMessages(currentMessages);
@@ -65,7 +70,7 @@ export const ChatWidget = () => {
     try {
       const history = currentMessages.slice(0, -1);
       const { data, error } = await supabase.functions.invoke("ask-public-agent", {
-        body: { agentId, prompt, history },
+        body: { agentId, prompt, history, conversationId: conversationIdRef.current },
       });
 
       if (error) throw new Error(error.message);
