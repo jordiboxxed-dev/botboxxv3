@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Settings, Trash2 } from "lucide-react";
+import { Bot, Settings, Trash2, Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -26,6 +26,7 @@ type Agent = DbAgent | MockAgent;
 
 interface MainContentProps {
   selectedAgent: Agent | null;
+  onMenuClick?: () => void;
 }
 
 interface Message {
@@ -33,7 +34,7 @@ interface Message {
   content: string;
 }
 
-export const MainContent = ({ selectedAgent }: MainContentProps) => {
+export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -147,11 +148,21 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="flex-1 flex flex-col h-screen"
+      className="flex-1 flex flex-col h-screen relative"
     >
+      {onMenuClick && (
+        <Button
+          onClick={onMenuClick}
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 left-4 lg:hidden z-10 text-white"
+        >
+          <Menu className="w-6 h-6" />
+        </Button>
+      )}
       {selectedAgent ? (
-        <div className="flex-1 flex flex-row h-full">
-          <div className="flex-1 flex flex-col p-6">
+        <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
+          <div className="flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6">
             <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
@@ -191,12 +202,12 @@ export const MainContent = ({ selectedAgent }: MainContentProps) => {
               <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
             </div>
           </div>
-          <div className="w-80 p-6 flex flex-col">
+          <div className="w-full lg:w-80 p-4 lg:p-6 flex flex-col">
              <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400">
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 pt-12 lg:pt-0">
           <Bot className="w-24 h-24 mb-4 text-gray-500" />
           <h2 className="text-2xl font-bold text-white">Bienvenido a tus Agentes</h2>
           <p className="mb-4">Selecciona un agente de la lista para comenzar a chatear.</p>

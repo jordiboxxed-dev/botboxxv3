@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { MainContent } from "./MainContent";
-import { Agent as MockAgent } from "@/data/mock-agents"; // Renombrado para evitar conflictos
+import { Agent as MockAgent } from "@/data/mock-agents";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SkeletonLoader } from "./SkeletonLoader";
 import { showError, showSuccess } from "@/utils/toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
-// Definimos un tipo para los agentes que vienen de la DB
 export interface Agent {
   id: string;
   name: string;
   description: string | null;
   company_name: string | null;
   system_prompt: string | null;
-  // Añade más campos si es necesario
 }
 
 export const AppLayout = () => {
@@ -23,7 +23,9 @@ export const AppLayout = () => {
   const [userAgents, setUserAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | MockAgent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [chatKey, setChatKey] = useState(0); // Clave para forzar el reseteo del chat
+  const [chatKey, setChatKey] = useState(0);
+  const isMobile = useIsMobile();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchAgentsAndSetSelected = async () => {
@@ -86,7 +88,7 @@ export const AppLayout = () => {
       console.error(error);
     } else {
       showSuccess("Historial de chat limpiado.");
-      setChatKey(prevKey => prevKey + 1); // Cambia la clave para forzar el re-renderizado de MainContent
+      setChatKey(prevKey => prevKey + 1);
     }
   };
 
@@ -94,14 +96,39 @@ export const AppLayout = () => {
     return <SkeletonLoader />;
   }
 
+  if (isMobile) {
+    return (
+      <div className="flex w-full min-h-screen bg-gray-900">
+        <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+          <SheetContent side="left" className="p-0 w-80 bg-black/50 backdrop-blur-lg border-r-0">
+            <Sidebar
+              userAgents={userAgents}
+              onAgentSelect={() => {}}
+              activeAgentId={agentId}
+              onClearChat={handleClearChat}
+              onLinkClick={() => setIsSidebarOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+        <MainContent 
+          key={chatKey} 
+          selectedAgent={selectedAgent} 
+          onMenuClick={() => setIsSidebarOpen(true)} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full min-h-screen">
-      <Sidebar 
-        userAgents={userAgents} 
-        onAgentSelect={setSelectedAgent} 
-        activeAgentId={agentId}
-        onClearChat={handleClearChat}
-      />
+      <div className="w-80 h-screen flex flex-col bg-black/30 backdrop-blur-lg border-r border-white/10">
+        <Sidebar
+          userAgents={userAgents}
+          onAgentSelect={setSelectedAgent}
+          activeAgentId={agentId}
+          onClearChat={handleClearChat}
+        />
+      </div>
       <MainContent key={chatKey} selectedAgent={selectedAgent} />
     </div>
   );

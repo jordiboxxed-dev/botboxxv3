@@ -11,19 +11,20 @@ interface SidebarProps {
   onAgentSelect: (agent: Agent) => void;
   activeAgentId?: string;
   onClearChat: () => void;
+  onLinkClick?: () => void;
 }
 
-export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat }: SidebarProps) => {
+export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat, onLinkClick }: SidebarProps) => {
   const navigate = useNavigate();
 
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    onLinkClick?.();
+  };
+
   return (
-    <motion.aside
-      initial={{ x: "-100%" }}
-      animate={{ x: "0%" }}
-      transition={{ duration: 0.5, ease: "easeInOut" }}
-      className="w-80 h-screen p-4 flex flex-col bg-black/30 backdrop-blur-lg border-r border-white/10"
-    >
-      <Link to="/dashboard" className="flex items-center gap-3 mb-8">
+    <aside className="w-full h-full p-4 flex flex-col">
+      <Link to="/dashboard" onClick={onLinkClick} className="flex items-center gap-3 mb-8">
         <Bot className="w-8 h-8 text-blue-400" />
         <h1 className="text-2xl font-bold text-white">Agentes IA</h1>
       </Link>
@@ -33,7 +34,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.5 }}
-          onClick={() => navigate('/create-agent')}
+          onClick={() => handleNavigate('/create-agent')}
           className="w-full text-left p-3 rounded-lg flex items-center gap-4 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-500/30"
         >
           <div className="p-2 bg-white/10 rounded-md">
@@ -61,7 +62,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat 
         </div>
         
         {userAgents.length > 0 ? userAgents.map((agent, index) => (
-          <Link to={`/agent/${agent.id}`} key={agent.id} className={`rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
+          <Link to={`/agent/${agent.id}`} key={agent.id} onClick={onLinkClick} className={`rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
             <AgentCard 
               agent={{
                 ...agent,
@@ -78,7 +79,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat 
         )}
 
         <div className="my-2 border-t border-white/10"></div>
-        <Link to="/templates" className="text-sm font-semibold text-gray-400 px-2 mb-2 flex items-center gap-2 hover:text-white">
+        <Link to="/templates" onClick={onLinkClick} className="text-sm font-semibold text-gray-400 px-2 mb-2 flex items-center gap-2 hover:text-white">
           <LayoutTemplate className="w-4 h-4" />
           <span>Explorar Plantillas</span>
         </Link>
@@ -94,6 +95,6 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat 
           Cerrar Sesión
         </Button>
       </div>
-    </motion.aside>
+    </aside>
   );
 };
