@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Settings, Trash2, Menu } from "lucide-react";
+import { Bot, Settings, Trash2, Menu, Code } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { KnowledgeSource, KnowledgeSourceManager } from "@/components/knowledge/KnowledgeSourceManager";
+import { EmbedDialog } from "@/components/agents/EmbedDialog";
 
 type Agent = DbAgent | MockAgent;
 
@@ -39,6 +40,7 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
+  const [isEmbedDialogOpen, setIsEmbedDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -161,51 +163,61 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
         </Button>
       )}
       {selectedAgent ? (
-        <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
-          <div className="flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6">
-            <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
-                <p className="text-sm text-gray-400">{selectedAgent.description}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link to={`/agent/${selectedAgent.id}/edit`}>
-                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                    <Settings className="w-5 h-5" />
+        <>
+          <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
+            <div className="flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6">
+              <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
+                  <p className="text-sm text-gray-400">{selectedAgent.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={() => setIsEmbedDialogOpen(true)}>
+                    <Code className="w-5 h-5" />
                   </Button>
-                </Link>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500">
-                      <Trash2 className="w-5 h-5" />
+                  <Link to={`/agent/${selectedAgent.id}/edit`}>
+                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                      <Settings className="w-5 h-5" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Esto eliminará permanentemente el agente y todos sus mensajes y fuentes de conocimiento asociadas.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteAgent} className="bg-red-600 hover:bg-red-700">
-                        Eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500">
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Esto eliminará permanentemente el agente y todos sus mensajes y fuentes de conocimiento asociadas.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAgent} className="bg-red-600 hover:bg-red-700">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </header>
+              <div className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">
+                <MessageList messages={messages} isLoading={isLoading} />
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
               </div>
-            </header>
-            <div className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">
-              <MessageList messages={messages} isLoading={isLoading} />
-              <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+            </div>
+            <div className="w-full lg:w-80 p-4 lg:p-6 flex flex-col">
+               <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
             </div>
           </div>
-          <div className="w-full lg:w-80 p-4 lg:p-6 flex flex-col">
-             <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
-          </div>
-        </div>
+          <EmbedDialog 
+            open={isEmbedDialogOpen} 
+            onOpenChange={setIsEmbedDialogOpen} 
+            agentId={selectedAgent.id} 
+          />
+        </>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 pt-12 lg:pt-0">
           <Bot className="w-24 h-24 mb-4 text-gray-500" />
