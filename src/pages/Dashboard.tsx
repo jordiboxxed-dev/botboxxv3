@@ -23,12 +23,6 @@ const Dashboard = () => {
         <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
       </motion.div>
 
-      <AnalyticsDashboard />
-
-      <div className="w-full max-w-4xl mt-8">
-        <div className="my-6 border-t border-white/10"></div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -68,6 +62,12 @@ const Dashboard = () => {
           </Link>
         </motion.div>
       </div>
+
+      <div className="w-full max-w-4xl mt-8">
+        <div className="my-6 border-t border-white/10"></div>
+      </div>
+
+      <AnalyticsDashboard />
     </div>
   );
 };
