@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useNavigate, useLocation } from "react-router-dom";
-import { showError } from "@/utils/toast";
 import { handleEmailConfirmation, redirectToDashboard } from "@/utils/auth";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ const Login = () => {
   const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
-    // Verificar si el usuario ya está autenticado
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -29,7 +27,6 @@ const Login = () => {
 
     checkSession();
 
-    // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
         navigate('/dashboard');
@@ -41,14 +38,12 @@ const Login = () => {
     };
   }, [navigate]);
 
-  // Manejar la confirmación de email desde la URL
   useEffect(() => {
     const processEmailConfirmation = async () => {
       const params = new URLSearchParams(location.search);
       const confirmed = await handleEmailConfirmation(params);
       
       if (confirmed) {
-        // Pequeño delay para asegurar que la sesión se estableció
         setTimeout(() => {
           redirectToDashboard();
         }, 1000);
@@ -95,7 +90,7 @@ const Login = () => {
           <Button
             variant={showRegister ? "default" : "outline"}
             onClick={() => setShowRegister(true)}
-            className="flex-1"
+            className="flex-1 text-white"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Registrarse
@@ -119,20 +114,20 @@ const Login = () => {
                   }
                 }
               }}
+              localization={{
+                variables: {
+                  sign_in: {
+                    link_text: '',
+                  },
+                  forgotten_password: {
+                    link_text: '¿Olvidaste tu contraseña?',
+                  }
+                },
+              }}
               providers={[]}
               theme="dark"
               redirectTo="https://botboxx-demov2.vercel.app/auth/callback"
             />
-            <div className="text-center text-sm text-gray-400 mt-4">
-              ¿No tienes cuenta?{" "}
-              <button
-                type="button"
-                onClick={() => setShowRegister(true)}
-                className="text-blue-400 hover:text-blue-300 font-medium"
-              >
-                Regístrate aquí
-              </button>
-            </div>
             <ResendConfirmation />
           </>
         )}
