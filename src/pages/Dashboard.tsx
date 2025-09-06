@@ -25,7 +25,11 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
           </div>
-          <Button variant="outline" onClick={() => supabase.auth.signOut()}>
+          <Button
+            variant="outline"
+            onClick={() => supabase.auth.signOut()}
+            className="text-white border-white/30 hover:bg-white/10"
+          >
             <LogOut className="w-4 h-4 mr-2" />
             Cerrar Sesión
           </Button>
