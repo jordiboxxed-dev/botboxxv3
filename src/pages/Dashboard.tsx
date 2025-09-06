@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bot, PlusCircle, LayoutTemplate } from "lucide-react";
+import { Bot, PlusCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
         className="text-center mb-8"
       >
-        <h1 className="text-4xl font-bold mb-2">BotBoxx Agents</h1>
+        <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
         <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
       </motion.div>
 
@@ -42,9 +42,9 @@ const Dashboard = () => {
               className={cn(blueCardProps.className, "bg-black/30 p-8 rounded-xl border border-white/10 hover:border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
             >
               <Bot className="w-16 h-16 mb-4 text-blue-400" />
-              <h2 className="text-2xl font-semibold mb-2">Usar una Plantilla</h2>
-              <p className="text-gray-400 mb-6">Comienza rápidamente con uno de nuestros agentes pre-configurados para diferentes industrias.</p>
-              <Button className="mt-auto">Explorar Plantillas</Button>
+              <h2 className="text-2xl font-semibold mb-2">Ver Agentes y Plantillas</h2>
+              <p className="text-gray-400 mb-6">Explora plantillas pre-configuradas o gestiona los agentes que ya has creado.</p>
+              <Button className="mt-auto">Explorar</Button>
             </div>
           </Link>
         </motion.div>
@@ -62,7 +62,7 @@ const Dashboard = () => {
             >
               <PlusCircle className="w-16 h-16 mb-4 text-green-400" />
               <h2 className="text-2xl font-semibold mb-2">Crear desde Cero</h2>
-              <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento específico de tu negocio.</p>
+              <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento.</p>
               <Button variant="secondary" className="mt-auto">Crear Agente</Button>
             </div>
           </Link>

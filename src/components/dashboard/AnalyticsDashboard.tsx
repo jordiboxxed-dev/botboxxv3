@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bot, MessageSquare, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface StatCardProps {
   title: string;
@@ -29,6 +30,7 @@ export const AnalyticsDashboard = () => {
     totalMessages: 0,
     mostActiveAgent: "N/A",
   });
+  const [chartData, setChartData] = useState<{ name: string; messages: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,17 +50,16 @@ export const AnalyticsDashboard = () => {
       const agents = agentsRes.data || [];
       const messages = messagesRes.data || [];
 
-      let mostActiveAgent = "N/A";
-      if (messages.length > 0 && agents.length > 0) {
-        const messageCounts = messages.reduce((acc, msg) => {
-          acc[msg.agent_id] = (acc[msg.agent_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+      const messageCounts = messages.reduce((acc, msg) => {
+        acc[msg.agent_id] = (acc[msg.agent_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
+      let mostActiveAgent = "N/A";
+      if (Object.keys(messageCounts).length > 0) {
         const mostActiveId = Object.keys(messageCounts).reduce((a, b) =>
           messageCounts[a] > messageCounts[b] ? a : b
         );
-        
         const activeAgent = agents.find(agent => agent.id === mostActiveId);
         mostActiveAgent = activeAgent ? activeAgent.name : "N/A";
       }
@@ -69,6 +70,12 @@ export const AnalyticsDashboard = () => {
         mostActiveAgent,
       });
 
+      const newChartData = agents.map(agent => ({
+        name: agent.name.split(' ').slice(0, 2).join(' '), // Shorten name for chart
+        messages: messageCounts[agent.id] || 0,
+      }));
+      setChartData(newChartData);
+
       setIsLoading(false);
     };
 
@@ -77,10 +84,13 @@ export const AnalyticsDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-3 w-full max-w-4xl">
-        <Skeleton className="h-28" />
-        <Skeleton className="h-28" />
-        <Skeleton className="h-28" />
+      <div className="w-full max-w-4xl space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+        <Skeleton className="h-72" />
       </div>
     );
   }
@@ -90,26 +100,40 @@ export const AnalyticsDashboard = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
-      className="w-full max-w-4xl"
+      className="w-full max-w-4xl space-y-6"
     >
-      <h2 className="text-xl font-semibold text-white mb-4">Resumen de Actividad</h2>
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          title="Agentes Creados"
-          value={stats.totalAgents}
-          icon={<Bot className="h-4 w-4 text-gray-400" />}
-        />
-        <StatCard
-          title="Total de Mensajes"
-          value={stats.totalMessages}
-          icon={<MessageSquare className="h-4 w-4 text-gray-400" />}
-        />
-        <StatCard
-          title="Agente más Activo"
-          value={stats.mostActiveAgent}
-          icon={<TrendingUp className="h-4 w-4 text-gray-400" />}
-        />
+      <div>
+        <h2 className="text-xl font-semibold text-white mb-4">Resumen de Actividad</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard title="Agentes Creados" value={stats.totalAgents} icon={<Bot className="h-4 w-4 text-gray-400" />} />
+          <StatCard title="Total de Mensajes" value={stats.totalMessages} icon={<MessageSquare className="h-4 w-4 text-gray-400" />} />
+          <StatCard title="Agente más Activo" value={stats.mostActiveAgent} icon={<TrendingUp className="h-4 w-4 text-gray-400" />} />
+        </div>
       </div>
+
+      <Card className="bg-black/30 border-white/10 text-white">
+        <CardHeader>
+          <CardTitle className="text-gray-300">Distribución de Mensajes por Agente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.length > 0 ? (
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <XAxis dataKey="name" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }} contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} />
+                  <Bar dataKey="messages" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-72 flex items-center justify-center text-gray-500">
+              No hay datos de mensajes para mostrar.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
