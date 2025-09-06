@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import CreateAgent from "./pages/CreateAgent";
 import EditAgent from "./pages/EditAgent";
 import { AppLayout } from "./components/layout/AppLayout";
+import Embed from "./pages/Embed";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,9 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Publicly accessible embed route */}
+            <Route path="/embed/agent/:agentId" element={<Embed />} />
+
             {!session ? (
               <Route path="*" element={<Login />} />
             ) : (
