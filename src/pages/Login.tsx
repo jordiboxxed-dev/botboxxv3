@@ -8,6 +8,7 @@ import { handleEmailConfirmation, redirectToDashboard } from "@/utils/auth";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { Button } from "@/components/ui/button";
 import { LogIn, UserPlus } from "lucide-react";
+import { ResendConfirmation } from "@/components/auth/ResendConfirmation";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -132,6 +133,7 @@ const Login = () => {
                 Regístrate aquí
               </button>
             </div>
+            <ResendConfirmation />
           </>
         )}
       </div>
