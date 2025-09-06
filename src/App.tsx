@@ -18,6 +18,7 @@ import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
 import Account from "./pages/Account";
+import PublicAgentPage from "./pages/PublicAgentPage";
 
 const queryClient = new QueryClient();
 
@@ -51,12 +52,11 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Ruta específica para manejo de autenticación */}
+            {/* Rutas públicas */}
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
-            
-            {/* Publicly accessible embed route */}
             <Route path="/embed/agent/:agentId" element={<Embed />} />
+            <Route path="/chat/:agentId" element={<PublicAgentPage />} />
 
             {!session ? (
               <>

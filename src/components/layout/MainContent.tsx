@@ -1,7 +1,7 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Settings, Trash2, Menu, Code, MessageCircle, BookOpen } from "lucide-react";
+import { Bot, Settings, Trash2, Menu, Code, MessageCircle, BookOpen, Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
@@ -43,6 +43,7 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
   const [isLoading, setIsLoading] = useState(false);
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [isEmbedDialogOpen, setIsEmbedDialogOpen] = useState(false);
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -151,6 +152,15 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
     }
   };
 
+  const handleCopyLink = () => {
+    if (!selectedAgent) return;
+    const publicUrl = `${window.location.origin}/chat/${selectedAgent.id}`;
+    navigator.clipboard.writeText(publicUrl);
+    setHasCopiedLink(true);
+    showSuccess("¡Enlace público copiado!");
+    setTimeout(() => setHasCopiedLink(false), 2000);
+  };
+
   return (
     <motion.main
       initial={{ opacity: 0 }}
@@ -178,6 +188,9 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
                   <p className="text-sm text-gray-400">{selectedAgent.description}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={handleCopyLink}>
+                    {hasCopiedLink ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
+                  </Button>
                   <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={() => setIsEmbedDialogOpen(true)}>
                     <Code className="w-5 h-5" />
                   </Button>
