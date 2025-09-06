@@ -17,6 +17,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => {
               <>
                 <Route path="/" element={<Navigate to="/dashboard" />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/account" element={<Account />} />
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/create-agent" element={<CreateAgent />} />
                 <Route path="/agent/:agentId" element={<AppLayout />} />

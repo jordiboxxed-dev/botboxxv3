@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bot, PlusCircle, LogOut } from "lucide-react";
+import { Bot, PlusCircle, LogOut, UserCog } from "lucide-react";
 import { motion } from "framer-motion";
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
@@ -25,14 +25,25 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => supabase.auth.signOut()}
-            className="text-white border-white/30 hover:bg-white/10"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/account">
+              <Button
+                variant="outline"
+                className="text-white border-white/30 hover:bg-white/10"
+              >
+                <UserCog className="w-4 h-4 mr-2" />
+                Mi Cuenta
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              onClick={() => supabase.auth.signOut()}
+              className="text-white border-white/30 hover:bg-white/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </div>
       </motion.div>
 
