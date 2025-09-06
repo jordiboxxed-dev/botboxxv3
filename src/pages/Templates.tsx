@@ -109,7 +109,7 @@ const Templates = () => {
             {[...Array(6)].map((_, i) => (
               <div key={i} className="bg-black/30 rounded-xl p-6 border border-white/10">
                 <Skeleton className="h-16 w-16 rounded-md mb-4" />
-                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-6 w-3-4 mb-2" />
                 <Skeleton className="h-4 w-full mb-4" />
                 <Skeleton className="h-10 w-full" />
               </div>
@@ -221,6 +221,7 @@ const Templates = () => {
                 onClick={() => {}} 
                 index={index} 
                 isInteractive={false}
+                disableAnimation={true}
               />
               <p className="text-gray-400 text-sm mt-4 mb-6 flex-grow">{agent.description}</p>
               <Button 

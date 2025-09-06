@@ -18,7 +18,7 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
         className="text-center mb-12"
       >
-        <h1 className="text-4xl font-bold mb-2">Plataforma de Agentes IA</h1>
+        <h1 className="text-4xl font-bold mb-2">Boxxed Agents</h1>
         <p className="text-lg text-gray-400">Crea o selecciona un agente para comenzar.</p>
       </motion.div>
       

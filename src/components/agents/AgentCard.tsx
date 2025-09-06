@@ -18,22 +18,27 @@ interface AgentCardProps {
   onClick: (agent: Agent) => void;
   index: number;
   isInteractive?: boolean;
+  disableAnimation?: boolean;
 }
 
-export const AgentCard = ({ agent, onClick, index, isInteractive = true }: AgentCardProps) => {
+export const AgentCard = ({ agent, onClick, index, isInteractive = true, disableAnimation = false }: AgentCardProps) => {
   const cardProps = useInteractiveCard();
 
   const finalRef = isInteractive ? (cardProps.ref as React.Ref<HTMLButtonElement>) : null;
   const eventHandlers = isInteractive ? { onMouseMove: cardProps.onMouseMove, onMouseLeave: cardProps.onMouseLeave } : {};
   const finalClassName = isInteractive ? cardProps.className : "";
 
+  const motionProps = disableAnimation ? {} : {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.3, delay: 0.1 * index + 0.8 }
+  };
+
   return (
     <motion.button
       ref={finalRef}
       {...eventHandlers}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.1 * index + 0.8 }}
+      {...motionProps}
       onClick={() => onClick(agent)}
       className={cn(
         finalClassName,
