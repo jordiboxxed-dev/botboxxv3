@@ -1,42 +1,31 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        // Deja que Supabase maneje automáticamente los parámetros de la URL
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (data.session) {
-          // Usuario autenticado correctamente
-          navigate('/dashboard');
-        } else {
-          // No hay sesión, redirigir a login
-          navigate('/login');
-        }
-      } catch (error) {
-        console.error('Error en callback de autenticación:', error);
-        showError('Error al procesar la autenticación');
-        navigate('/login');
+    // Este listener se activa específicamente cuando Supabase detecta un evento de inicio de sesión,
+    // como el que ocurre al hacer clic en el enlace de confirmación de correo.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // Una vez que se confirma el inicio de sesión, redirigimos al dashboard.
+        navigate('/dashboard');
       }
-    };
+    });
 
-    handleAuthCallback();
-  }, [navigate, location]);
+    // Es importante limpiar la suscripción cuando el componente se desmonta.
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-        <p className="mt-4">Procesando autenticación...</p>
+        <p className="mt-4">Procesando autenticación, por favor espera...</p>
       </div>
     </div>
   );
