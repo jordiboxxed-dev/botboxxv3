@@ -64,7 +64,7 @@ export const EmbedDialog = ({ open, onOpenChange, agentId }: EmbedDialogProps) =
           </div>
           <div>
             <Label>Vista Previa en Vivo</Label>
-            <div className="mt-2 w-full h-[450px] border border-gray-700 rounded-md overflow-hidden relative bg-gray-900">
+            <div className="mt-2 w-full h-[650px] border border-gray-700 rounded-md overflow-hidden relative bg-gray-900">
               <iframe
                 src={embedUrl}
                 title="Vista previa del agente"

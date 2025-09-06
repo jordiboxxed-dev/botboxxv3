@@ -15,7 +15,6 @@ interface Message {
 
 interface AgentInfo {
   name: string;
-  system_prompt: string | null;
   company_name: string | null;
 }
 
@@ -30,43 +29,60 @@ export const ChatWidget = () => {
     if (!agentId) return;
 
     const fetchAgentInfo = async () => {
-      // NOTE: This is a public query. Ensure RLS is set up correctly
-      // to allow public reads on agent names if needed, or create a dedicated function.
-      // For now, we assume agents table is not publicly readable for security.
-      // We will create a dedicated edge function for this later.
-      
-      // Mock data for now:
-      setAgentInfo({
-        name: "Asistente Virtual",
-        system_prompt: "Eres un asistente de IA.",
-        company_name: "Mi Empresa"
-      });
+      try {
+        const { data, error } = await supabase.functions.invoke("get-public-agent-name", {
+          body: { agentId },
+        });
 
-      // Add a welcome message
-      setMessages([
-        { role: "assistant", content: "¡Hola! ¿Cómo puedo ayudarte hoy?" }
-      ]);
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+
+        setAgentInfo(data);
+        setMessages([
+          { role: "assistant", content: `¡Hola! Soy ${data.name}. ¿Cómo puedo ayudarte hoy?` }
+        ]);
+      } catch (err) {
+        console.error("Error fetching agent info:", err);
+        showError("No se pudo cargar la información del agente.");
+        setMessages([{ role: "assistant", content: "Lo siento, no pude cargar la configuración de este agente." }]);
+      }
     };
 
     fetchAgentInfo();
   }, [agentId]);
 
   const handleSendMessage = async (prompt: string) => {
-    // Placeholder for sending message logic
+    if (!agentId) return;
+
     const userMessage: Message = { role: "user", content: prompt };
-    setMessages(prev => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const assistantMessage: Message = { role: "assistant", content: "Esta es una respuesta de demostración. La lógica real se implementará en el siguiente paso." };
-      setMessages(prev => [...prev, assistantMessage]);
+    try {
+      const history = currentMessages.slice(0, -1);
+      const { data, error } = await supabase.functions.invoke("ask-public-agent", {
+        body: { agentId, prompt, history },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
+      const assistantMessage: Message = { role: "assistant", content: data.response };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error(err);
+      const errorMessageText = (err instanceof Error) ? err.message : "Ocurrió un error desconocido.";
+      showError(`Error al contactar al agente: ${errorMessageText}`);
+      const errorMessage: Message = { role: "assistant", content: `Lo siento, tuve un problema para procesar tu solicitud.\n\n**Detalle:** ${errorMessageText}` };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   if (!agentId) {
-    return null; // Or show an error state
+    return null;
   }
 
   return (
@@ -78,16 +94,16 @@ export const ChatWidget = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="w-[400px] h-[600px] bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
+            className="w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100vh-5rem)] max-h-[600px] bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
           >
-            <header className="p-4 bg-black/20 flex items-center justify-between border-b border-white/10">
+            <header className="p-4 bg-black/20 flex items-center justify-between border-b border-white/10 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/10 rounded-full">
                   <Bot className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white">{agentInfo?.name || "Chat"}</h3>
-                  <p className="text-xs text-gray-400">En línea</p>
+                  <p className="text-xs text-gray-400">{agentInfo?.company_name || "En línea"}</p>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
