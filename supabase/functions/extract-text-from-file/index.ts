@@ -1,7 +1,11 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import pdf from "https://esm.sh/pdf-parse@1.1.1";
+// Usar pdf.js para una mejor compatibilidad con Deno
+import * as pdfjs from "https://esm.sh/pdfjs-dist@4.4.168";
 import mammoth from "https://esm.sh/mammoth@1.10.0";
+
+// pdf.js requiere que se configure un "worker". Para un entorno de servidor, podemos apuntar al mismo archivo.
+pdfjs.GlobalWorkerOptions.workerSrc = "https://esm.sh/pdfjs-dist@4.4.168/build/pdf.worker.mjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,19 +32,23 @@ serve(async (req) => {
     let text = "";
 
     if (contentType.includes("application/pdf")) {
-      // pdf-parse puede funcionar con un Uint8Array, que es compatible con Deno.
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const data = await pdf(uint8Array);
-      text = data.text;
+      const data = new Uint8Array(arrayBuffer);
+      const doc = await pdfjs.getDocument(data).promise;
+      let fullText = "";
+      for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        const strings = content.items.map(item => item.str);
+        fullText += strings.join(' ') + '\n';
+      }
+      text = fullText;
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-      // mammoth.js puede funcionar directamente con un ArrayBuffer.
       const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
     } else if (contentType.startsWith("text/")) {
       const decoder = new TextDecoder("utf-8");
       text = decoder.decode(arrayBuffer);
     } else {
-      // Fallback para tipos genéricos como application/octet-stream, a menudo usado para archivos .txt
       try {
         const decoder = new TextDecoder("utf-8");
         text = decoder.decode(arrayBuffer);
