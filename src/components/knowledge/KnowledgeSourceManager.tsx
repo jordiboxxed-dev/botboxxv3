@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Info, Plus, Trash2, FileText, Link as LinkIcon, FileUp } from "lucide-react";
+import { Info, Plus, Trash2, FileText, Link as LinkIcon, FileUp, Globe } from "lucide-react";
 import { AddSourceDialog } from "@/components/knowledge/AddSourceDialog";
 import {
   AlertDialog,
@@ -20,7 +20,7 @@ import {
 export interface KnowledgeSource {
   id: string;
   name: string;
-  type: "text" | "url" | "file";
+  type: "text" | "url" | "file" | "website";
   created_at: string;
 }
 
@@ -73,6 +73,7 @@ export const KnowledgeSourceManager = ({ agentId, onSourcesChange }: KnowledgeSo
     switch (type) {
       case 'url': return <LinkIcon className="w-4 h-4 text-gray-400" />;
       case 'file': return <FileUp className="w-4 h-4 text-gray-400" />;
+      case 'website': return <Globe className="w-4 h-4 text-gray-400" />;
       default: return <FileText className="w-4 h-4 text-gray-400" />;
     }
   };

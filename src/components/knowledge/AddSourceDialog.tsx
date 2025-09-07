@@ -11,11 +11,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileUp, Link as LinkIcon, FileText } from "lucide-react";
+import { Loader2, FileUp, Link as LinkIcon, FileText, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 
-type SourceType = "text" | "url" | "file";
+type SourceType = "text" | "url" | "file" | "website";
 
 interface AddSourceDialogProps {
   open: boolean;
@@ -134,6 +134,28 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
   };
 
   const handleSubmit = async () => {
+    if (sourceType === 'website') {
+        if (!textContent) {
+            showError("Por favor, introduce la URL del sitio web.");
+            return;
+        }
+        setIsLoading(true);
+        setStatusMessage("Iniciando rastreo del sitio web...");
+        try {
+            const { error } = await supabase.functions.invoke("scrape-and-embed", {
+                body: { agentId, url: textContent },
+            });
+            if (error) throw error;
+            showSuccess("¡Rastreo iniciado! El conocimiento se añadirá en unos minutos.");
+            onSourceAdded();
+            handleClose();
+        } catch (err) {
+            showError("Error al iniciar el rastreo: " + (err as Error).message);
+            setIsLoading(false);
+        }
+        return;
+    }
+
     if (!name || !textContent || !sourceType) {
       showError("El nombre y el contenido son obligatorios.");
       return;
@@ -183,20 +205,23 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
   const renderContent = () => {
     if (!sourceType) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("text")}><FileText />Texto Plano</Button>
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("url")}><LinkIcon />Desde URL</Button>
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => { setSourceType("file"); setTimeout(() => fileInputRef.current?.click(), 100); }}><FileUp />Subir Archivo</Button>
+          <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("website")}><Globe />Importar Sitio Web</Button>
         </div>
       );
     }
 
     return (
       <div className="space-y-4 py-4">
-        <div>
-          <Label htmlFor="source-name">Nombre de la Fuente</Label>
-          <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" />
-        </div>
+        {sourceType !== 'website' && (
+            <div>
+                <Label htmlFor="source-name">Nombre de la Fuente</Label>
+                <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Política de Devoluciones" />
+            </div>
+        )}
         {sourceType === "text" && (
           <div>
             <Label htmlFor="source-content">Contenido</Label>
@@ -221,6 +246,13 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
             {textContent && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
           </div>
         )}
+        {sourceType === 'website' && (
+            <div>
+                <Label htmlFor="website-url">URL del Sitio Web</Label>
+                <Input id="website-url" type="url" value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="https://minegocio.com" />
+                <p className="text-xs text-gray-400 mt-2">Importaremos el contenido de esta página y sus enlaces internos.</p>
+            </div>
+        )}
       </div>
     );
   };
@@ -239,7 +271,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         <DialogFooter>
           {sourceType && <Button variant="ghost" onClick={() => { setTextContent(''); setName(''); setSourceType(null); }} disabled={isLoading}>Atrás</Button>}
           <Button onClick={handleClose} variant="outline" disabled={isLoading}>Cancelar</Button>
-          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !textContent || !name}>
+          {sourceType && <Button onClick={handleSubmit} disabled={isLoading || (sourceType !== 'website' && (!textContent || !name))}>
             {isLoading ? <Loader2 className="animate-spin" /> : "Guardar y Procesar"}
           </Button>}
         </DialogFooter>
