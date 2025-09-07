@@ -1,5 +1,5 @@
 import { useUsage } from '@/hooks/useUsage';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck } from 'lucide-react';
@@ -9,7 +9,7 @@ export const PlanUsageBanner = () => {
   const { usageInfo, isLoading } = useUsage();
 
   if (isLoading) {
-    return <Skeleton className="h-36 w-full max-w-4xl" />;
+    return <Skeleton className="h-40 w-full max-w-4xl" />;
   }
 
   if (!usageInfo) {
@@ -51,10 +51,10 @@ export const PlanUsageBanner = () => {
 
   return (
     <Card className="bg-black/30 border-white/10 text-white w-full max-w-4xl">
-      <CardContent className="p-6">
+      <CardHeader>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h3 className="text-xl font-bold capitalize">Plan {plan}</h3>
+            <CardTitle className="text-xl font-bold capitalize">Plan {plan}</CardTitle>
             {isTrialActive && trialDaysLeft !== null ? (
               <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
                 <Calendar className="w-4 h-4" />
@@ -69,18 +69,20 @@ export const PlanUsageBanner = () => {
           </div>
           <Button>Actualizar Plan</Button>
         </div>
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-black/20 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-2 text-sm">
-              <span className="text-gray-300 flex items-center gap-2"><Bot className="w-4 h-4" /> Agentes</span>
-              <span>{agentsCreated} / {agentLimit}</span>
+              <span className="text-gray-300 flex items-center gap-2 font-medium"><Bot className="w-4 h-4" /> Uso de Agentes</span>
+              <span className="font-semibold">{agentsCreated} / {agentLimit}</span>
             </div>
             <Progress value={agentPercentage} className="h-2" />
           </div>
-          <div>
+          <div className="bg-black/20 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-2 text-sm">
-              <span className="text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4" /> Mensajes</span>
-              <span>{messagesSent} / {messageLimit}</span>
+              <span className="text-gray-300 flex items-center gap-2 font-medium"><MessageSquare className="w-4 h-4" /> Mensajes (este mes)</span>
+              <span className="font-semibold">{messagesSent} / {messageLimit}</span>
             </div>
             <Progress value={messagePercentage} className="h-2" />
           </div>
