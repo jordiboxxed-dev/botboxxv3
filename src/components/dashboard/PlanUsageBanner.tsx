@@ -2,7 +2,7 @@ import { useUsage } from '@/hooks/useUsage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Calendar, Bot, MessageSquare } from 'lucide-react';
+import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export const PlanUsageBanner = () => {
@@ -25,6 +25,26 @@ export const PlanUsageBanner = () => {
     agentLimit,
     isTrialActive,
   } = usageInfo;
+
+  if (plan === 'admin') {
+    return (
+      <Card className="bg-black/30 border-blue-400/50 text-white w-full max-w-4xl">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h3 className="text-xl font-bold capitalize flex items-center gap-2">
+                <ShieldCheck className="w-6 h-6 text-blue-400" />
+                Plan Administrador
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                Tienes acceso ilimitado a todas las funcionalidades para pruebas.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const messagePercentage = (messagesSent / messageLimit) * 100;
   const agentPercentage = (agentsCreated / agentLimit) * 100;

@@ -41,33 +41,36 @@ serve(async (req) => {
     
     const { user_id: agentOwnerId } = agentData;
 
-    // Check Usage Limits of the Agent's Owner
-    const TRIAL_MESSAGE_LIMIT = 50;
-    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
+    // Check Usage Limits of the Agent's Owner (Bypass for Admins)
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('plan, trial_ends_at')
+      .select('plan, trial_ends_at, role') // Fetch role
       .eq('id', agentOwnerId)
       .single();
 
     if (profileError) throw new Error("No se pudo verificar el perfil del propietario del agente.");
 
-    if (profileData.plan === 'trial') {
-      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
-        throw new Error("El período de prueba para este agente ha expirado. El propietario necesita actualizar su plan.");
-      }
+    // If the agent owner is not an admin, enforce limits
+    if (profileData.role !== 'admin') {
+      const TRIAL_MESSAGE_LIMIT = 50;
+      const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-      const { data: usageData } = await supabaseAdmin
-        .from('usage_stats')
-        .select('messages_sent')
-        .eq('user_id', agentOwnerId)
-        .eq('month_start', currentMonthStart)
-        .single();
-      
-      const messagesSent = usageData?.messages_sent || 0;
-      if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
-        throw new Error(`Límite de mensajes del plan de prueba (${TRIAL_MESSAGE_LIMIT}) alcanzado. El propietario necesita actualizar su plan.`);
+      if (profileData.plan === 'trial') {
+        if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
+          throw new Error("El período de prueba para este agente ha expirado. El propietario necesita actualizar su plan.");
+        }
+
+        const { data: usageData } = await supabaseAdmin
+          .from('usage_stats')
+          .select('messages_sent')
+          .eq('user_id', agentOwnerId)
+          .eq('month_start', currentMonthStart)
+          .single();
+        
+        const messagesSent = usageData?.messages_sent || 0;
+        if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
+          throw new Error(`Límite de mensajes del plan de prueba (${TRIAL_MESSAGE_LIMIT}) alcanzado. El propietario necesita actualizar su plan.`);
+        }
       }
     }
 
@@ -115,10 +118,12 @@ serve(async (req) => {
 
     const result = await chatModel.generateContentStream({ contents: fullHistory });
 
-    // Increment message count for the agent owner
-    const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
-    if (incrementError) {
-      console.error('Failed to increment message count:', incrementError);
+    // Increment message count for the agent owner (if not admin)
+    if (profileData.role !== 'admin') {
+      const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
+      if (incrementError) {
+        console.error('Failed to increment message count:', incrementError);
+      }
     }
 
     let fullResponse = "";

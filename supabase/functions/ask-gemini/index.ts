@@ -38,37 +38,40 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // 2. Check Usage Limits
-    const TRIAL_MESSAGE_LIMIT = 50;
-    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
+    // 2. Check Usage Limits (Bypass for Admins)
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('plan, trial_ends_at')
+      .select('plan, trial_ends_at, role') // Fetch role as well
       .eq('id', user.id)
       .single();
 
     if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
 
-    if (profileData.plan === 'trial') {
-      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
-        throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
-      }
+    // If the user is not an admin, enforce limits
+    if (profileData.role !== 'admin') {
+      const TRIAL_MESSAGE_LIMIT = 50;
+      const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-      const { data: usageData } = await supabaseAdmin
-        .from('usage_stats')
-        .select('messages_sent')
-        .eq('user_id', user.id)
-        .eq('month_start', currentMonthStart)
-        .single();
-      
-      const messagesSent = usageData?.messages_sent || 0;
-      if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
-        throw new Error(`Has alcanzado el límite de ${TRIAL_MESSAGE_LIMIT} mensajes de tu plan de prueba. Por favor, actualiza tu plan.`);
+      if (profileData.plan === 'trial') {
+        if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
+          throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
+        }
+
+        const { data: usageData } = await supabaseAdmin
+          .from('usage_stats')
+          .select('messages_sent')
+          .eq('user_id', user.id)
+          .eq('month_start', currentMonthStart)
+          .single();
+        
+        const messagesSent = usageData?.messages_sent || 0;
+        if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
+          throw new Error(`Has alcanzado el límite de ${TRIAL_MESSAGE_LIMIT} mensajes de tu plan de prueba. Por favor, actualiza tu plan.`);
+        }
       }
     }
 
-    // 3. Proceed with existing logic if checks pass
+    // 3. Proceed with existing logic
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -118,10 +121,12 @@ serve(async (req) => {
 
     const result = await chat.sendMessageStream(prompt);
 
-    // 4. Increment message count after successful generation
-    const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
-    if (incrementError) {
-      console.error('Failed to increment message count:', incrementError);
+    // 4. Increment message count (also bypassed for admins for consistency, though not strictly necessary)
+    if (profileData.role !== 'admin') {
+      const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
+      if (incrementError) {
+        console.error('Failed to increment message count:', incrementError);
+      }
     }
 
     const stream = new ReadableStream({
