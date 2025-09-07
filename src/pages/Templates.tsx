@@ -1,10 +1,10 @@
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentCard } from "@/components/agents/AgentCard";
-import { mockAgents } from "@/data/mock-agents";
+import { mockAgents, Agent as TemplateAgent } from "@/data/mock-agents";
 import { showError, showSuccess } from "@/utils/toast";
 import { Plus, ArrowLeft, Bot, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -23,11 +23,13 @@ import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { Badge } from "@/components/ui/badge";
+import { TemplatePreviewDialog } from "@/components/agents/TemplatePreviewDialog";
 
 const Templates = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [userAgents, setUserAgents] = useState<any[]>([]);
+  const [previewingAgent, setPreviewingAgent] = useState<TemplateAgent | null>(null);
 
   const fetchUserAgents = async () => {
     setIsLoading(true);
@@ -42,7 +44,7 @@ const Templates = () => {
       .from('agents')
       .select('*')
       .eq('user_id', user.id)
-      .is('deleted_at', null) // Solo mostrar agentes no eliminados
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -74,7 +76,7 @@ const Templates = () => {
           name: `Copia de ${template.name}`,
           description: template.description,
           system_prompt: template.systemPrompt,
-          status: 'active', // Por defecto, los nuevos agentes están activos
+          status: 'active',
         })
         .select()
         .single();
@@ -92,14 +94,14 @@ const Templates = () => {
   const handleDeleteAgent = async (agentId: string) => {
     const { error } = await supabase
       .from('agents')
-      .update({ deleted_at: new Date().toISOString() }) // Soft delete
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', agentId);
 
     if (error) {
       showError("Error al eliminar el agente: " + error.message);
     } else {
       showSuccess("Agente eliminado correctamente.");
-      fetchUserAgents(); // Re-fetch agents to update the list
+      fetchUserAgents();
     }
   };
 
@@ -237,16 +239,37 @@ const Templates = () => {
                 disableAnimation={true}
               />
               <p className="text-gray-400 text-sm mt-4 mb-6 flex-grow">{agent.description}</p>
-              <Button 
-                onClick={() => handleCreateFromTemplate(agent)}
-                className="w-full"
-              >
-                Usar esta plantilla
-              </Button>
+              <div className="flex items-center gap-2 mt-auto">
+                <Button 
+                  variant="secondary"
+                  onClick={() => setPreviewingAgent(agent)}
+                  className="w-full"
+                >
+                  Previsualizar
+                </Button>
+                <Button 
+                  onClick={() => handleCreateFromTemplate(agent)}
+                  className="w-full"
+                >
+                  Usar Plantilla
+                </Button>
+              </div>
             </motion.div>
           ))}
         </div>
       </div>
+      
+      <TemplatePreviewDialog
+        open={!!previewingAgent}
+        onOpenChange={() => setPreviewingAgent(null)}
+        agent={previewingAgent}
+        onUseTemplate={() => {
+          if (previewingAgent) {
+            handleCreateFromTemplate(previewingAgent);
+          }
+          setPreviewingAgent(null);
+        }}
+      />
     </div>
   );
 };
