@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Buffer } from "https://deno.land/std@0.190.0/node/buffer.ts";
 import pdf from "https://esm.sh/pdf-parse@1.1.1";
-import mammoth from "https://esm.sh/mammoth@1.7.0";
+import mammoth from "https://esm.sh/mammoth@1.10.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,18 +27,25 @@ serve(async (req) => {
     }
 
     let text = "";
+    const buffer = Buffer.from(arrayBuffer);
 
     if (contentType.includes("application/pdf")) {
-      const data = await pdf(new Uint8Array(arrayBuffer));
+      const data = await pdf(buffer);
       text = data.text;
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-      const result = await mammoth.extractRawText({ arrayBuffer });
+      const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (contentType.startsWith("text/")) {
       const decoder = new TextDecoder("utf-8");
       text = decoder.decode(arrayBuffer);
     } else {
-      throw new Error(`Tipo de archivo no soportado: ${contentType}. Por favor, sube un PDF, DOCX o TXT.`);
+      // Fallback for generic mime types like application/octet-stream, often used for .txt files
+      try {
+        const decoder = new TextDecoder("utf-8");
+        text = decoder.decode(arrayBuffer);
+      } catch (e) {
+        throw new Error(`Tipo de archivo no soportado: ${contentType}. Por favor, sube un PDF, DOCX o TXT.`);
+      }
     }
 
     if (!text || text.trim().length === 0) {
@@ -54,7 +62,7 @@ serve(async (req) => {
     console.error("Error in extract-text-from-file function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400, // Use 400 for client-side errors, 500 for server-side
+      status: 400,
     });
   }
 });
