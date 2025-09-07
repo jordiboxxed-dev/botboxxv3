@@ -24,6 +24,25 @@ interface AddSourceDialogProps {
   onSourceAdded: () => void;
 }
 
+// --- Funciones auxiliares para leer archivos con Promesas ---
+const readFileAsText = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+};
+
+const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+};
+
 export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: AddSourceDialogProps) => {
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,18 +72,34 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
     setIsLoading(true);
     setStatusMessage("Extrayendo texto del archivo...");
     setName(file.name);
-    try {
-      const blob = new Blob([file], { type: file.type });
-      const { data, error } = await supabase.functions.invoke("extract-text-from-file", {
-        body: blob,
-        headers: { "Content-Type": file.type || "application/octet-stream" }
-      });
 
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+    try {
+      let extractedText = "";
+      if (file.type === 'text/plain') {
+        extractedText = await readFileAsText(file);
+      } else if (file.type === 'application/pdf') {
+        // @ts-ignore
+        if (!window.pdfjsLib) {
+          throw new Error("La librería para leer PDF no está cargada. Por favor, refresca la página.");
+        }
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        // @ts-ignore
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map((s: any) => s.str).join(' ') + '\n';
+        }
+        extractedText = fullText;
+      } else {
+        throw new Error("Formato de archivo no soportado. Por favor, sube .txt o .pdf.");
+      }
       
-      setTextContent(data.content);
+      setTextContent(extractedText);
       showSuccess(`Contenido de ${file.name} extraído.`);
+
     } catch (err) {
       showError((err as Error).message || "No se pudo procesar el archivo.");
       resetState();
@@ -112,7 +147,6 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         return;
     }
 
-    // 1. Crear la fuente de conocimiento (sin el contenido)
     const { data: sourceData, error: sourceError } = await supabase.from("knowledge_sources").insert({
         user_id: user.id,
         agent_id: agentId,
@@ -126,7 +160,6 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         return;
     }
 
-    // 2. Llamar a la función de embedding
     setStatusMessage("Procesando y generando embeddings...");
     try {
       const { error: embedError } = await supabase.functions.invoke("embed-and-store", {
@@ -140,7 +173,6 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       handleClose();
     } catch (err) {
       showError("Error al procesar el conocimiento: " + (err as Error).message);
-      // Opcional: eliminar la fuente creada si el embedding falla
       await supabase.from("knowledge_sources").delete().eq("id", sourceData.id);
     } finally {
       setIsLoading(false);
@@ -154,7 +186,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("text")}><FileText />Texto Plano</Button>
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("url")}><LinkIcon />Desde URL</Button>
-          <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setSourceType("file")}><FileUp />Subir Archivo</Button>
+          <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => { setSourceType("file"); setTimeout(() => fileInputRef.current?.click(), 100); }}><FileUp />Subir Archivo</Button>
         </div>
       );
     }
@@ -185,7 +217,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         {sourceType === "file" && (
           <div>
             <Label>Archivo</Label>
-            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx,.txt,text/*" className="text-gray-400 file:text-white" />
+            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.txt,text/plain" className="text-gray-400 file:text-white" />
             {textContent && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
           </div>
         )}
@@ -205,7 +237,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         {renderContent()}
         {isLoading && <div className="text-center text-sm text-blue-300 flex items-center justify-center gap-2"><Loader2 className="animate-spin w-4 h-4" /> {statusMessage}</div>}
         <DialogFooter>
-          {sourceType && <Button variant="ghost" onClick={() => setSourceType(null)} disabled={isLoading}>Atrás</Button>}
+          {sourceType && <Button variant="ghost" onClick={() => { setTextContent(''); setName(''); setSourceType(null); }} disabled={isLoading}>Atrás</Button>}
           <Button onClick={handleClose} variant="outline" disabled={isLoading}>Cancelar</Button>
           {sourceType && <Button onClick={handleSubmit} disabled={isLoading || !textContent || !name}>
             {isLoading ? <Loader2 className="animate-spin" /> : "Guardar y Procesar"}
