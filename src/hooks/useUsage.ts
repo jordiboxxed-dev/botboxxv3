@@ -44,8 +44,8 @@ export const useUsage = () => {
       const trialDaysLeft = trialEndsAt ? Math.max(0, differenceInDays(trialEndsAt, new Date())) : null;
       const isTrialActive = plan === 'trial' && trialDaysLeft !== null && trialDaysLeft > 0;
 
-      const messageLimit = plan === 'trial' ? 50 : Infinity;
-      const agentLimit = plan === 'trial' ? 1 : Infinity;
+      const messageLimit = plan === 'trial' ? 150 : Infinity;
+      const agentLimit = plan === 'trial' ? 2 : Infinity;
       const messagesSent = usage?.messages_sent || 0;
 
       setUsageInfo({

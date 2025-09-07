@@ -52,7 +52,7 @@ serve(async (req) => {
 
     // If the agent owner is not an admin, enforce limits
     if (profileData.role !== 'admin') {
-      const TRIAL_MESSAGE_LIMIT = 50;
+      const TRIAL_MESSAGE_LIMIT = 150;
       const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
       if (profileData.plan === 'trial') {
