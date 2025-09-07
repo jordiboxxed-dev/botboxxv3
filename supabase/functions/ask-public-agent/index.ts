@@ -1,13 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,7 +24,6 @@ serve(async (req) => {
   try {
     const { agentId, prompt, history, conversationId } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
-
     if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
     if (!agentId || !prompt || !conversationId) {
       throw new Error("agentId, prompt y conversationId son requeridos.");
@@ -28,12 +34,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
     
-    const { data: agentData, error: agentError } = await supabaseAdmin
-      .from("agents")
-      .select("system_prompt, user_id, company_name, status, deleted_at")
-      .eq("id", agentId)
-      .single();
-      
+    const { data: agentData, error: agentError } = await supabaseAdmin.from("agents").select("system_prompt, user_id, company_name, status, deleted_at").eq("id", agentId).single();
     if (agentError) throw new Error("No se pudo encontrar el agente.");
     if (agentData.status !== 'active' || agentData.deleted_at) {
       throw new Error("Este agente no está activo y no puede recibir mensajes.");
@@ -41,32 +42,17 @@ serve(async (req) => {
     
     const { user_id: agentOwnerId } = agentData;
 
-    // Check Usage Limits of the Agent's Owner (Bypass for Admins)
-    const { data: profileData, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('plan, trial_ends_at, role') // Fetch role
-      .eq('id', agentOwnerId)
-      .single();
-
+    const { data: profileData, error: profileError } = await supabaseAdmin.from('profiles').select('plan, trial_ends_at, role').eq('id', agentOwnerId).single();
     if (profileError) throw new Error("No se pudo verificar el perfil del propietario del agente.");
 
-    // If the agent owner is not an admin, enforce limits
     if (profileData.role !== 'admin') {
       const TRIAL_MESSAGE_LIMIT = 150;
       const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
       if (profileData.plan === 'trial') {
         if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
           throw new Error("El período de prueba para este agente ha expirado. El propietario necesita actualizar su plan.");
         }
-
-        const { data: usageData } = await supabaseAdmin
-          .from('usage_stats')
-          .select('messages_sent')
-          .eq('user_id', agentOwnerId)
-          .eq('month_start', currentMonthStart)
-          .single();
-        
+        const { data: usageData } = await supabaseAdmin.from('usage_stats').select('messages_sent').eq('user_id', agentOwnerId).eq('month_start', currentMonthStart).single();
         const messagesSent = usageData?.messages_sent || 0;
         if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
           throw new Error(`Límite de mensajes del plan de prueba (${TRIAL_MESSAGE_LIMIT}) alcanzado. El propietario necesita actualizar su plan.`);
@@ -74,13 +60,18 @@ serve(async (req) => {
       }
     }
 
-    // Proceed with existing logic
     await supabaseAdmin.from("public_conversations").upsert({ id: conversationId, agent_id: agentId, user_id: agentOwnerId });
     await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "user", content: prompt });
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
+
+    // --- HyDE (Hypothetical Document Embeddings) ---
+    const hydePrompt = `Por favor, escribe un pasaje corto que responda a la siguiente pregunta. El pasaje debe ser conciso y directo al punto. Pregunta: "${prompt}"`;
+    const hydeResult = await chatModel.generateContent(hydePrompt);
+    const hypotheticalDocument = hydeResult.response.text();
+    // --- Fin de HyDE ---
 
     const { system_prompt: rawSystemPrompt, company_name: companyName } = agentData;
     const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
@@ -91,11 +82,11 @@ serve(async (req) => {
 
     let context = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-        const promptEmbedding = await embeddingModel.embedContent(prompt);
+        const promptEmbedding = await embeddingModel.embedContent(hypotheticalDocument); // Usar el documento hipotético
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
-            match_threshold: 0.6,
-            match_count: 20,
+            match_threshold: 0.7, // Aumentamos el umbral para mayor precisión
+            match_count: 15,
             source_ids: sourceIds
         });
         if (matchError) throw matchError;
@@ -118,12 +109,8 @@ serve(async (req) => {
 
     const result = await chatModel.generateContentStream({ contents: fullHistory });
 
-    // Increment message count for the agent owner (if not admin)
     if (profileData.role !== 'admin') {
-      const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
-      if (incrementError) {
-        console.error('Failed to increment message count:', incrementError);
-      }
+      await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
     }
 
     let fullResponse = "";
@@ -150,7 +137,7 @@ serve(async (req) => {
     console.error("Error in ask-public-agent function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 403, // Forbidden
+      status: 403,
     });
   }
 });

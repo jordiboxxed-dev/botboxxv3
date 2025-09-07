@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, FileUp, Link as LinkIcon, FileText, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
+import mammoth from "mammoth";
 
 type SourceType = "text" | "url" | "file" | "website";
 
@@ -93,8 +94,12 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
           fullText += content.items.map((s: any) => s.str).join(' ') + '\n';
         }
         extractedText = fullText;
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        extractedText = result.value;
       } else {
-        throw new Error("Formato de archivo no soportado. Por favor, sube .txt o .pdf.");
+        throw new Error("Formato no soportado. Sube .txt, .pdf o .docx.");
       }
       
       setTextContent(extractedText);
@@ -242,7 +247,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         {sourceType === "file" && (
           <div>
             <Label>Archivo</Label>
-            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.txt,text/plain" className="text-gray-400 file:text-white" />
+            <Input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.txt,text/plain,.docx" className="text-gray-400 file:text-white" />
             {textContent && <p className="text-sm text-gray-400 mt-2">Contenido extraído. Puedes editar el nombre si lo deseas.</p>}
           </div>
         )}
