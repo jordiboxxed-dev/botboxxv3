@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Buffer } from "https://deno.land/std@0.190.0/node/buffer.ts";
 import pdf from "https://esm.sh/pdf-parse@1.1.1";
 import mammoth from "https://esm.sh/mammoth@1.10.0";
 
@@ -27,19 +26,21 @@ serve(async (req) => {
     }
 
     let text = "";
-    const buffer = Buffer.from(arrayBuffer);
 
     if (contentType.includes("application/pdf")) {
-      const data = await pdf(buffer);
+      // pdf-parse puede funcionar con un Uint8Array, que es compatible con Deno.
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const data = await pdf(uint8Array);
       text = data.text;
     } else if (contentType.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
-      const result = await mammoth.extractRawText({ buffer });
+      // mammoth.js puede funcionar directamente con un ArrayBuffer.
+      const result = await mammoth.extractRawText({ arrayBuffer });
       text = result.value;
     } else if (contentType.startsWith("text/")) {
       const decoder = new TextDecoder("utf-8");
       text = decoder.decode(arrayBuffer);
     } else {
-      // Fallback for generic mime types like application/octet-stream, often used for .txt files
+      // Fallback para tipos genéricos como application/octet-stream, a menudo usado para archivos .txt
       try {
         const decoder = new TextDecoder("utf-8");
         text = decoder.decode(arrayBuffer);
