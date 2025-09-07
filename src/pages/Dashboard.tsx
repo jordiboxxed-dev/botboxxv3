@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bot, PlusCircle, LogOut, UserCog } from "lucide-react";
@@ -7,37 +6,13 @@ import { AnalyticsDashboard } from "@/components/dashboard/AnalyticsDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingGuide } from "@/components/dashboard/OnboardingGuide";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Agent {
-  id: string;
-}
+import { useUsage } from "@/hooks/useUsage";
+import { PlanUsageBanner } from "@/components/dashboard/PlanUsageBanner";
 
 const Dashboard = () => {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { usageInfo, isLoading: isLoadingUsage } = useUsage();
 
-  useEffect(() => {
-    const fetchUserAgents = async () => {
-      setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('agents')
-          .select('id')
-          .eq('user_id', user.id);
-        
-        if (error) {
-          console.error("Error fetching agents:", error);
-        } else {
-          setAgents(data || []);
-        }
-      }
-      setIsLoading(false);
-    };
-    fetchUserAgents();
-  }, []);
-
-  if (isLoading) {
+  if (isLoadingUsage) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
         <div className="w-full max-w-4xl space-y-8">
@@ -49,8 +24,11 @@ const Dashboard = () => {
     );
   }
 
+  const hasAgents = (usageInfo?.agentsCreated ?? 0) > 0;
+  const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
+    <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white p-4 pt-8">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -77,7 +55,11 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {agents.length === 0 ? (
+      <div className="mb-8 w-full max-w-4xl">
+        <PlanUsageBanner />
+      </div>
+
+      {!hasAgents ? (
         <OnboardingGuide />
       ) : (
         <>
@@ -102,14 +84,21 @@ const Dashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <Link to="/create-agent" className="block h-full">
-                <div className="bg-black/30 p-8 rounded-xl border border-white/10 hover:border-green-400 transition-all duration-300 flex flex-col items-center text-center h-full">
-                  <PlusCircle className="w-16 h-16 mb-4 text-green-400" />
-                  <h2 className="text-2xl font-semibold mb-2">Crear desde Cero</h2>
-                  <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento.</p>
-                  <Button variant="secondary" className="mt-auto">Crear Agente</Button>
-                </div>
-              </Link>
+              <div className="h-full relative">
+                <Link to="/create-agent" className={`block h-full ${agentLimitReached ? 'pointer-events-none' : ''}`}>
+                  <div className={`bg-black/30 p-8 rounded-xl border border-white/10  transition-all duration-300 flex flex-col items-center text-center h-full ${agentLimitReached ? 'opacity-50' : 'hover:border-green-400'}`}>
+                    <PlusCircle className="w-16 h-16 mb-4 text-green-400" />
+                    <h2 className="text-2xl font-semibold mb-2">Crear desde Cero</h2>
+                    <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento.</p>
+                    <Button variant="secondary" className="mt-auto" disabled={agentLimitReached}>Crear Agente</Button>
+                  </div>
+                </Link>
+                {agentLimitReached && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <p className="text-center bg-black/80 p-2 rounded-md text-sm">Límite de agentes alcanzado.</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
 

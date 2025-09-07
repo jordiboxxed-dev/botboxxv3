@@ -27,10 +27,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+    
     const { data: agentData, error: agentError } = await supabaseAdmin
       .from("agents")
       .select("system_prompt, user_id, company_name, status, deleted_at")
@@ -38,22 +35,54 @@ serve(async (req) => {
       .single();
       
     if (agentError) throw new Error("No se pudo encontrar el agente.");
-    
-    // Verificar si el agente está activo y no ha sido eliminado
     if (agentData.status !== 'active' || agentData.deleted_at) {
       throw new Error("Este agente no está activo y no puede recibir mensajes.");
     }
     
-    const { system_prompt: rawSystemPrompt, user_id: agentOwnerId, company_name: companyName } = agentData;
-    const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
+    const { user_id: agentOwnerId } = agentData;
 
+    // Check Usage Limits of the Agent's Owner
+    const TRIAL_MESSAGE_LIMIT = 50;
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('plan, trial_ends_at')
+      .eq('id', agentOwnerId)
+      .single();
+
+    if (profileError) throw new Error("No se pudo verificar el perfil del propietario del agente.");
+
+    if (profileData.plan === 'trial') {
+      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
+        throw new Error("El período de prueba para este agente ha expirado. El propietario necesita actualizar su plan.");
+      }
+
+      const { data: usageData } = await supabaseAdmin
+        .from('usage_stats')
+        .select('messages_sent')
+        .eq('user_id', agentOwnerId)
+        .eq('month_start', currentMonthStart)
+        .single();
+      
+      const messagesSent = usageData?.messages_sent || 0;
+      if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
+        throw new Error(`Límite de mensajes del plan de prueba (${TRIAL_MESSAGE_LIMIT}) alcanzado. El propietario necesita actualizar su plan.`);
+      }
+    }
+
+    // Proceed with existing logic
     await supabaseAdmin.from("public_conversations").upsert({ id: conversationId, agent_id: agentId, user_id: agentOwnerId });
     await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "user", content: prompt });
 
-    const { data: sources, error: sourcesError } = await supabaseAdmin
-      .from("knowledge_sources")
-      .select("id")
-      .eq("agent_id", agentId);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const { system_prompt: rawSystemPrompt, company_name: companyName } = agentData;
+    const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
+
+    const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
@@ -84,9 +113,13 @@ serve(async (req) => {
       { role: "user", parts: [{ text: prompt }] }
     ];
 
-    const result = await chatModel.generateContentStream({
-        contents: fullHistory,
-    });
+    const result = await chatModel.generateContentStream({ contents: fullHistory });
+
+    // Increment message count for the agent owner
+    const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
+    if (incrementError) {
+      console.error('Failed to increment message count:', incrementError);
+    }
 
     let fullResponse = "";
     const stream = new ReadableStream({
@@ -99,7 +132,6 @@ serve(async (req) => {
             controller.enqueue(encoder.encode(text));
           }
         }
-        // Guardar la respuesta completa al final
         await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullResponse });
         controller.close();
       },
@@ -113,7 +145,7 @@ serve(async (req) => {
     console.error("Error in ask-public-agent function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 403, // Forbidden
     });
   }
 });

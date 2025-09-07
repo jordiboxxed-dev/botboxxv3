@@ -15,6 +15,18 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Get Authenticated User
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error("Falta el encabezado de autorización.");
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? '',
+      Deno.env.get("SUPABASE_ANON_KEY") ?? '',
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error("Token de usuario inválido.");
+
     const { agentId, prompt, history, systemPrompt } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
@@ -25,14 +37,42 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
+
+    // 2. Check Usage Limits
+    const TRIAL_MESSAGE_LIMIT = 50;
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('plan, trial_ends_at')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
+
+    if (profileData.plan === 'trial') {
+      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
+        throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
+      }
+
+      const { data: usageData } = await supabaseAdmin
+        .from('usage_stats')
+        .select('messages_sent')
+        .eq('user_id', user.id)
+        .eq('month_start', currentMonthStart)
+        .single();
+      
+      const messagesSent = usageData?.messages_sent || 0;
+      if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
+        throw new Error(`Has alcanzado el límite de ${TRIAL_MESSAGE_LIMIT} mensajes de tu plan de prueba. Por favor, actualiza tu plan.`);
+      }
+    }
+
+    // 3. Proceed with existing logic if checks pass
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    
-    const generativeModel = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-    });
+    const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 1. Fetch knowledge context
     const { data: sources, error: sourcesError } = await supabaseAdmin
       .from("knowledge_sources")
       .select("id")
@@ -45,8 +85,8 @@ serve(async (req) => {
       const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.6, // Reducido para ser más inclusivo
-        match_count: 20,     // Aumentado para obtener más contexto
+        match_threshold: 0.6,
+        match_count: 20,
         source_ids: sourceIds
       });
       if (matchError) throw matchError;
@@ -56,29 +96,19 @@ serve(async (req) => {
     }
 
     const metaPrompt = `
-Tu rol es ser un asistente experto que combina la información específica proporcionada con tu conocimiento general.
-
-**Directrices de Respuesta:**
-1.  **Prioridad al Contexto:** Tu fuente de verdad principal es el "Contexto Relevante de la Base de Conocimiento". Siempre que la pregunta se relacione con el contexto, basa tu respuesta firmemente en él.
-2.  **Conocimiento General Permitido:** Si la pregunta es de naturaleza general y no se encuentra en el contexto, puedes usar tu conocimiento más amplio para responder.
-3.  **Integración Inteligente:** Combina la información del contexto con tu conocimiento general para dar respuestas completas y útiles, pero siempre dando preferencia a los datos proporcionados.
-4.  **Sigue la Personalidad:** Adopta la personalidad y el tono descritos en las "Instrucciones Base del Agente".
-
----
-
-**Contexto Relevante de la Base de Conocimiento:**
-${context}
-
----
-
-**Instrucciones Base del Agente (Personalidad y Tono):**
-${systemPrompt}
-`;
+      Tu rol es ser un asistente experto...
+      ---
+      **Contexto Relevante de la Base de Conocimiento:**
+      ${context}
+      ---
+      **Instrucciones Base del Agente (Personalidad y Tono):**
+      ${systemPrompt}
+    `;
 
     const chat = generativeModel.startChat({
         history: [
             { role: "user", parts: [{ text: metaPrompt }] },
-            { role: "model", parts: [{ text: "Entendido. Priorizaré el contexto proporcionado y usaré mi conocimiento general cuando sea apropiado, manteniendo siempre la personalidad del agente." }] },
+            { role: "model", parts: [{ text: "Entendido." }] },
             ...(history || []).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
@@ -87,6 +117,12 @@ ${systemPrompt}
     });
 
     const result = await chat.sendMessageStream(prompt);
+
+    // 4. Increment message count after successful generation
+    const { error: incrementError } = await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
+    if (incrementError) {
+      console.error('Failed to increment message count:', incrementError);
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -109,7 +145,7 @@ ${systemPrompt}
     console.error("Error in ask-gemini function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: 403, // Forbidden
     });
   }
 });
