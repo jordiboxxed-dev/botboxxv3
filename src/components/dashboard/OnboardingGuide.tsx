@@ -29,7 +29,7 @@ export const OnboardingGuide = () => {
             ref={blueCardProps.ref as React.Ref<HTMLDivElement>}
             className={cn(blueCardProps.className, "relative bg-black/30 p-8 rounded-xl border-2 border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
           >
-            <div className="absolute -top-3 -right-3 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
+            <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
               <Star className="w-3 h-3" /> Recomendado
             </div>
             <Bot className="w-16 h-16 mb-4 text-blue-400" />
