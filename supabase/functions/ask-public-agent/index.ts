@@ -72,7 +72,7 @@ serve(async (req) => {
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
-    const hydePrompt = `Genera una respuesta concisa a la pregunta del usuario, extrayendo el nombre del producto y su posible precio si se menciona. Pregunta: "${prompt}"`;
+    const hydePrompt = `Por favor, escribe un pasaje corto que responda a la siguiente pregunta. El pasaje debe ser conciso y directo al punto. Pregunta: "${prompt}"`;
     const hydeResult = await chatModel.generateContent(hydePrompt);
     const hypotheticalDocument = hydeResult.response.text();
 
@@ -88,7 +88,7 @@ serve(async (req) => {
         const promptEmbedding = await embeddingModel.embedContent(hypotheticalDocument);
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
-            match_threshold: 0.65,
+            match_threshold: 0.7,
             match_count: 15,
             source_ids: sourceIds
         });
@@ -105,20 +105,15 @@ serve(async (req) => {
     
     const fullHistory = [
       { role: "user", parts: [{ text: `
-        **Instrucción Principal e Inalterable:** Tu única y exclusiva fuente de verdad es el texto proporcionado en la sección 'Contexto'. Debes basar tus respuestas ÚNICAMENTE en esta información. NUNCA inventes información ni utilices conocimiento externo.
-
-        **Contexto de la Base de Conocimiento (Tu ÚNICA fuente de verdad):**
-        ${context}
-        ---
-        **Instrucciones del Agente (Personalidad y Tono):**
+        **Instrucciones Base:**
         ${systemPrompt}
-        ---
-        **Reglas de Respuesta:**
-        1.  Si la respuesta a la pregunta del usuario se encuentra en el 'Contexto', responde utilizando esa información de manera precisa.
-        2.  Si la respuesta no se encuentra en el 'Contexto', debes decir CLARAMENTE que no encontraste la información en tu base de conocimiento. NO des respuestas genéricas como "No tengo acceso a precios en tiempo real". Di "No encontré la información sobre [tema de la pregunta] en mi base de conocimiento."
-        3.  Ejemplo: Si el usuario pregunta 'precio de la Italy 8100' y el contexto dice 'Producto: Italy 8100 Plus..., Precio: 2,462.00', tu respuesta debe ser 'El precio de la Italy 8100 Plus es 2,462.00'.
+
+        **Contexto Relevante:**
+        ${context}
+        
+        **Regla Crítica de Formato:** Bajo ninguna circunstancia muestres texto que parezca un placeholder, como '[Insertar Precio Aquí]', '[Nombre del Cliente]', etc. Si la información que encuentras contiene un placeholder, significa que no tienes el dato específico. En ese caso, informa amablemente al usuario que no tienes esa información detallada y sugiere que contacte a un representante humano para obtenerla.
       ` }] },
-      { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado." }] },
+      { role: "model", parts: [{ text: "Entendido. Estoy listo para ayudar." }] },
       ...formattedHistory,
       { role: "user", parts: [{ text: prompt }] }
     ];
