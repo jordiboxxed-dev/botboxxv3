@@ -2,7 +2,7 @@ import { useUsage } from '@/hooks/useUsage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck, Instagram } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export const PlanUsageBanner = () => {
@@ -26,8 +26,7 @@ export const PlanUsageBanner = () => {
     isTrialActive,
   } = usageInfo;
 
-  // Reemplaza esta URL con tu enlace de WhatsApp
-  const whatsappLink = "https://wa.me/TUNUMEROAQUI?text=Hola!%20Estoy%20interesado%20en%20actualizar%20mi%20plan%20en%20BotBoxx.";
+  const upgradeLink = "https://www.instagram.com/jordishifter";
 
   if (plan === 'admin') {
     return (
@@ -71,8 +70,9 @@ export const PlanUsageBanner = () => {
             )}
           </div>
           <Button asChild>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-              Actualizar Plan
+            <a href={upgradeLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <Instagram className="w-4 h-4" />
+              Contactar para Mejorar Plan
             </a>
           </Button>
         </div>
