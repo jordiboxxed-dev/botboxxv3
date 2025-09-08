@@ -186,7 +186,7 @@
   }
 
   .typing-indicator span {
-    @apply h-2 w-2 rounded-full bg-gray-400;
+    @apply h-2 w-2 rounded-full bg-white;
     animation: dot-flashing 1s infinite linear alternate;
   }
 
