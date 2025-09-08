@@ -35,12 +35,12 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
         className="text-center mb-8 w-full max-w-4xl"
       >
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="text-left">
             <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Link to="/account">
               <Button variant="secondary">
                 <UserCog className="w-4 h-4 mr-2" />
