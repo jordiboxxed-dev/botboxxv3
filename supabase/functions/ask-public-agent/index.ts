@@ -72,7 +72,7 @@ serve(async (req) => {
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
-    const hydePrompt = `Genera una respuesta concisa a la pregunta del usuario, extrayendo el nombre del producto y su posible precio si se menciona. Pregunta: "${prompt}"`;
+    const hydePrompt = `Eres un experto en reformular preguntas para sistemas de búsqueda semántica. Transforma la siguiente pregunta del usuario en un párrafo hipotético que contenga la respuesta más probable. Este párrafo se usará para encontrar la información más relevante en una base de datos. Extrae y enfatiza nombres de productos, características clave y la intención principal. Pregunta del usuario: "${prompt}"`;
     const hydeResult = await chatModel.generateContent(hydePrompt);
     const hypotheticalDocument = hydeResult.response.text();
 

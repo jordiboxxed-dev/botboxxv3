@@ -179,4 +179,31 @@
       --angle: 360deg;
     }
   }
+
+  /* Typing Indicator Animation */
+  .typing-indicator {
+    @apply flex items-center justify-center gap-1.5;
+  }
+
+  .typing-indicator span {
+    @apply h-2 w-2 rounded-full bg-gray-400;
+    animation: dot-flashing 1s infinite linear alternate;
+  }
+
+  .typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes dot-flashing {
+    0% {
+      opacity: 0.2;
+    }
+    50%, 100% {
+      opacity: 1;
+    }
+  }
 }
