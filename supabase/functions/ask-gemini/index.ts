@@ -156,10 +156,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in ask-gemini function:", error);
-    let errorMessage = error.message;
-    if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-      errorMessage = "El servicio de IA está experimentando una alta demanda en este momento. Por favor, inténtalo de nuevo en unos momentos.";
+    let errorMessage = error.message || "Ocurrió un error desconocido.";
+
+    if (errorMessage.includes("429") && errorMessage.includes("quota")) {
+        errorMessage = "Se ha excedido el límite de solicitudes de la API de IA (plan gratuito). Por favor, espera a que se reinicie la cuota diaria o actualiza el plan de facturación de Google Cloud.";
+    } else if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        errorMessage = "El servicio de IA está experimentando una alta demanda en este momento. Por favor, inténtalo de nuevo en unos momentos.";
+    } else if (errorMessage.includes("API key not valid")) {
+        errorMessage = "La clave de API para el servicio de IA no es válida. Por favor, verifica la configuración.";
     }
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
