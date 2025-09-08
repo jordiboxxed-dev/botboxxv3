@@ -119,15 +119,15 @@ serve(async (req) => {
     ];
 
     let result;
-    const maxRetries = 3;
+    const maxRetries = 5;
     for (let i = 0; i < maxRetries; i++) {
       try {
         result = await chatModel.generateContentStream({ contents: fullHistory });
-        break; // Si tiene éxito, salimos del bucle
+        break;
       } catch (error) {
-        if (i === maxRetries - 1) throw error; // Si es el último intento, lanzamos el error
-        const delay = Math.pow(2, i) * 1000; // Espera exponencial: 1s, 2s, 4s
-        console.log(`Intento ${i + 1} fallido. Reintentando en ${delay}ms...`);
+        if (i === maxRetries - 1) throw error;
+        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        console.log(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay)}ms...`);
         await new Promise(res => setTimeout(res, delay));
       }
     }
@@ -158,9 +158,13 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in ask-public-agent function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    let errorMessage = error.message;
+    if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+      errorMessage = "El servicio de IA está experimentando una alta demanda en este momento. Por favor, inténtalo de nuevo en unos momentos.";
+    }
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 403,
+      status: 500,
     });
   }
 });

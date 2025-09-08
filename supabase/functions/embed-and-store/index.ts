@@ -9,19 +9,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Función para dividir el texto en fragmentos
+// Función mejorada para dividir el texto en fragmentos
 function chunkText(text, chunkSize = 1000, chunkOverlap = 200) {
+  const lines = text.split('\n').filter(line => line.trim().length > 2);
+
+  // Heurística: si hay muchas líneas y son relativamente cortas, trátalo como una lista.
+  const avgLineLength = lines.length > 0 ? text.length / lines.length : 0;
+  if (lines.length > 5 && avgLineLength < 300) {
+    console.log(`Detected list-like format (${lines.length} lines, avg ${avgLineLength.toFixed(0)} chars/line). Chunking per line.`);
+    return lines;
+  }
+
+  console.log(`Detected paragraph format. Chunking by size (${chunkSize} chars).`);
   const chunks = [];
   let i = 0;
   while (i < text.length) {
     const end = Math.min(i + chunkSize, text.length);
     chunks.push(text.slice(i, end));
     i += chunkSize - chunkOverlap;
-    if (i + chunkOverlap >= text.length) {
-      i = text.length;
+    if (i + chunkOverlap >= text.length && i < text.length) {
+      // Asegurarse de que el último trozo se incluya si es más pequeño que el overlap
+      chunks.push(text.slice(i));
+      break;
     }
   }
-  return chunks;
+  return chunks.filter(chunk => chunk.trim().length > 0);
 }
 
 serve(async (req) => {
@@ -43,8 +55,15 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-    // 1. Dividir el texto en fragmentos
+    // 1. Dividir el texto en fragmentos con la nueva lógica
     const chunks = chunkText(textContent);
+
+    if (chunks.length === 0) {
+      return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
     // 2. Generar embeddings para cada fragmento
     const embeddings = await embeddingModel.batchEmbedContents({
