@@ -46,18 +46,23 @@ serve(async (req) => {
     const { data: profileData, error: profileError } = await supabaseAdmin.from('profiles').select('plan, trial_ends_at, role').eq('id', user.id).single();
     if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
 
-    if (profileData.role !== 'admin') {
+    if (profileData.role !== 'admin' && profileData.plan === 'trial') {
+      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
+        throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
+      }
+
       const TRIAL_MESSAGE_LIMIT = 150;
-      const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-      if (profileData.plan === 'trial') {
-        if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
-          throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
-        }
-        const { data: usageData } = await supabaseAdmin.from('usage_stats').select('messages_sent').eq('user_id', user.id).eq('month_start', currentMonthStart).single();
-        const messagesSent = usageData?.messages_sent || 0;
-        if (messagesSent >= TRIAL_MESSAGE_LIMIT) {
-          throw new Error(`Has alcanzado el límite de ${TRIAL_MESSAGE_LIMIT} mensajes de tu plan de prueba. Por favor, actualiza tu plan.`);
-        }
+      const { data: usageData, error: usageError } = await supabaseAdmin
+        .from('usage_stats')
+        .select('messages_sent')
+        .eq('user_id', user.id);
+      
+      if (usageError) throw new Error("No se pudo verificar el uso de mensajes.");
+
+      const totalMessagesSent = usageData.reduce((sum, record) => sum + record.messages_sent, 0);
+
+      if (totalMessagesSent >= TRIAL_MESSAGE_LIMIT) {
+        throw new Error(`Has alcanzado el límite total de ${TRIAL_MESSAGE_LIMIT} mensajes de tu período de prueba. Por favor, actualiza tu plan.`);
       }
     }
 
@@ -65,11 +70,9 @@ serve(async (req) => {
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
-    // --- HyDE (Hypothetical Document Embeddings) ---
     const hydePrompt = `Por favor, escribe un pasaje corto que responda a la siguiente pregunta. El pasaje debe ser conciso y directo al punto. Pregunta: "${prompt}"`;
     const hydeResult = await generativeModel.generateContent(hydePrompt);
     const hypotheticalDocument = hydeResult.response.text();
-    // --- Fin de HyDE ---
 
     const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
@@ -77,10 +80,10 @@ serve(async (req) => {
 
     let context = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-      const promptEmbedding = await embeddingModel.embedContent(hypotheticalDocument); // Usar el documento hipotético
+      const promptEmbedding = await embeddingModel.embedContent(hypotheticalDocument);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.7, // Aumentamos el umbral para mayor precisión
+        match_threshold: 0.7,
         match_count: 15,
         source_ids: sourceIds
       });
