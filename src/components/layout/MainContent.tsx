@@ -5,7 +5,7 @@ import { Bot, Settings, Menu, Code, MessageCircle, BookOpen, Copy, Check, Messag
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -92,34 +92,45 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         content: prompt,
     });
 
-    // Add a placeholder for the assistant's message
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No estás autenticado.");
+      }
+
       const rawSystemPrompt = ('system_prompt' in selectedAgent && selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
       const companyName = ('company_name' in selectedAgent && selectedAgent.company_name) || "la empresa";
       const systemPrompt = rawSystemPrompt.replace(/\[Nombre de la Empresa\]/g, companyName);
       
       const history = messages;
 
-      const { data: stream, error } = await supabase.functions.invoke("ask-gemini", {
-        body: {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-gemini`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
           agentId: selectedAgent.id,
           prompt,
           history,
           systemPrompt
-        }
+        })
       });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
       }
 
-      if (!stream) {
+      if (!response.body) {
         throw new Error("No se pudo leer la respuesta del servidor.");
       }
       
-      const reader = stream.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 
