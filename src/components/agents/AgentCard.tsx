@@ -22,9 +22,9 @@ interface AgentCardProps {
 }
 
 export const AgentCard = ({ agent, onClick, index, isInteractive = true, disableAnimation = false }: AgentCardProps) => {
-  const cardProps = useInteractiveCard();
+  const cardProps = useInteractiveCard<HTMLButtonElement>();
 
-  const finalRef = isInteractive ? (cardProps.ref as React.Ref<HTMLButtonElement>) : null;
+  const finalRef = isInteractive ? cardProps.ref : null;
   const eventHandlers = isInteractive ? { onMouseMove: cardProps.onMouseMove, onMouseLeave: cardProps.onMouseLeave } : {};
   const finalClassName = isInteractive ? cardProps.className : "";
 

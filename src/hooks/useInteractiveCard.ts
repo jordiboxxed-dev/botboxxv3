@@ -4,10 +4,10 @@ interface UseInteractiveCardProps {
   glowColor?: string;
 }
 
-export const useInteractiveCard = ({ glowColor = 'rgba(29, 78, 216, 0.4)' }: UseInteractiveCardProps = {}) => {
-  const cardRef = React.useRef<HTMLElement>(null);
+export const useInteractiveCard = <T extends HTMLElement>({ glowColor = 'rgba(29, 78, 216, 0.4)' }: UseInteractiveCardProps = {}) => {
+  const cardRef = React.useRef<T>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<T>) => {
     if (!cardRef.current) return;
     const { clientX, clientY, currentTarget } = e;
     const { left, top, width, height } = currentTarget.getBoundingClientRect();

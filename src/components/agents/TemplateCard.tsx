@@ -14,12 +14,12 @@ interface TemplateCardProps {
 }
 
 export const TemplateCard = ({ agent, index, onPreview, onUseTemplate }: TemplateCardProps) => {
-  const cardProps = useInteractiveCard();
+  const cardProps = useInteractiveCard<HTMLDivElement>();
 
   return (
     <motion.div
       {...cardProps}
-      ref={cardProps.ref as React.Ref<HTMLDivElement>}
+      ref={cardProps.ref}
       key={agent.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}

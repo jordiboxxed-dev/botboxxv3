@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import React from "react";
 
 export const OnboardingGuide = () => {
-  const blueCardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.4)" });
-  const greenCardProps = useInteractiveCard({ glowColor: "rgba(52, 211, 153, 0.4)" });
+  const blueCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.4)" });
+  const greenCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(52, 211, 153, 0.4)" });
 
   return (
     <motion.div
@@ -26,7 +26,7 @@ export const OnboardingGuide = () => {
         <Link to="/templates" className="block h-full">
           <div 
             {...blueCardProps}
-            ref={blueCardProps.ref as React.Ref<HTMLDivElement>}
+            ref={blueCardProps.ref}
             className={cn(blueCardProps.className, "relative bg-black/30 p-8 rounded-xl border-2 border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
           >
             <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
@@ -42,7 +42,7 @@ export const OnboardingGuide = () => {
         <Link to="/create-agent" className="block h-full">
           <div 
             {...greenCardProps}
-            ref={greenCardProps.ref as React.Ref<HTMLDivElement>}
+            ref={greenCardProps.ref}
             className={cn(greenCardProps.className, "bg-black/30 p-8 rounded-xl border border-white/10 hover:border-green-400 transition-all duration-300 flex flex-col items-center text-center h-full")}
           >
             <PlusCircle className="w-16 h-16 mb-4 text-green-400" />

@@ -16,7 +16,7 @@ const EditAgent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [isFetching, setIsFetching] = useState(true);
-  const cardProps = useInteractiveCard({ glowColor: "rgba(59, 130, 246, 0.5)" });
+  const cardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.5)" });
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -82,7 +82,7 @@ const EditAgent = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
       <div 
         {...cardProps}
-        ref={cardProps.ref as React.Ref<HTMLDivElement>}
+        ref={cardProps.ref}
         className={cn(cardProps.className, "w-full max-w-3xl mx-auto bg-black/30 border border-white/10 rounded-2xl p-8 shadow-2xl")}
       >
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
