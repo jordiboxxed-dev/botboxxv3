@@ -8,9 +8,14 @@ import { OnboardingGuide } from "@/components/dashboard/OnboardingGuide";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUsage } from "@/hooks/useUsage";
 import { PlanUsageBanner } from "@/components/dashboard/PlanUsageBanner";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 const Dashboard = () => {
   const { usageInfo, isLoading: isLoadingUsage } = useUsage();
+  const templatesCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.4)" });
+  const createCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(52, 211, 153, 0.4)" });
 
   if (isLoadingUsage) {
     return (
@@ -37,7 +42,9 @@ const Dashboard = () => {
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="text-left">
-            <h1 className="text-4xl font-bold mb-2">BotBoxx Agents Hub</h1>
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
+              BotBoxx Agents Hub
+            </h1>
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -70,7 +77,14 @@ const Dashboard = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <Link to="/templates" className="block h-full">
-                <div className="bg-black/30 p-8 rounded-xl border border-white/10 hover:border-blue-400 transition-all duration-300 flex flex-col items-center text-center h-full">
+                <div
+                  ref={templatesCardProps.ref}
+                  {...templatesCardProps}
+                  className={cn(
+                    templatesCardProps.className,
+                    "bg-black/30 p-8 rounded-xl border border-white/10 transition-all duration-300 flex flex-col items-center text-center h-full"
+                  )}
+                >
                   <Bot className="w-16 h-16 mb-4 text-blue-400" />
                   <h2 className="text-2xl font-semibold mb-2">Ver Agentes y Plantillas</h2>
                   <p className="text-gray-400 mb-6">Explora plantillas pre-configuradas o gestiona los agentes que ya has creado.</p>
@@ -86,7 +100,14 @@ const Dashboard = () => {
             >
               <div className="h-full relative">
                 <Link to="/create-agent" className={`block h-full ${agentLimitReached ? 'pointer-events-none' : ''}`}>
-                  <div className={`bg-black/30 p-8 rounded-xl border border-white/10  transition-all duration-300 flex flex-col items-center text-center h-full ${agentLimitReached ? 'opacity-50' : 'hover:border-green-400'}`}>
+                  <div
+                    ref={createCardProps.ref}
+                    {...createCardProps}
+                    className={cn(
+                      createCardProps.className,
+                      `bg-black/30 p-8 rounded-xl border border-white/10 transition-all duration-300 flex flex-col items-center text-center h-full ${agentLimitReached ? 'opacity-50' : ''}`
+                    )}
+                  >
                     <PlusCircle className="w-16 h-16 mb-4 text-green-400" />
                     <h2 className="text-2xl font-semibold mb-2">Crear desde Cero</h2>
                     <p className="text-gray-400 mb-6">Diseña un agente personalizado con su propia personalidad y conocimiento.</p>
