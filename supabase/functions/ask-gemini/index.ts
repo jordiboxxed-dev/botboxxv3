@@ -96,6 +96,8 @@ serve(async (req) => {
       ---
       **Instrucciones Base del Agente (Personalidad y Tono):**
       ${systemPrompt}
+      ---
+      **Regla Crítica de Formato:** Bajo ninguna circunstancia muestres texto que parezca un placeholder, como '[Insertar Precio Aquí]', '[Nombre del Cliente]', etc. Si la información que encuentras contiene un placeholder, significa que no tienes el dato específico. En ese caso, informa amablemente al usuario que no tienes esa información detallada y sugiere que contacte a un representante humano para obtenerla.
     `;
 
     const chat = generativeModel.startChat({

@@ -101,7 +101,15 @@ serve(async (req) => {
     }));
     
     const fullHistory = [
-      { role: "user", parts: [{ text: `**Instrucciones Base:**\n${systemPrompt}\n\n**Contexto Relevante:**\n${context}` }] },
+      { role: "user", parts: [{ text: `
+        **Instrucciones Base:**
+        ${systemPrompt}
+
+        **Contexto Relevante:**
+        ${context}
+        
+        **Regla Crítica de Formato:** Bajo ninguna circunstancia muestres texto que parezca un placeholder, como '[Insertar Precio Aquí]', '[Nombre del Cliente]', etc. Si la información que encuentras contiene un placeholder, significa que no tienes el dato específico. En ese caso, informa amablemente al usuario que no tienes esa información detallada y sugiere que contacte a un representante humano para obtenerla.
+      ` }] },
       { role: "model", parts: [{ text: "Entendido. Estoy listo para ayudar." }] },
       ...formattedHistory,
       { role: "user", parts: [{ text: prompt }] }
