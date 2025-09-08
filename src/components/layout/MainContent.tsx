@@ -108,8 +108,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
           prompt,
           history,
           systemPrompt
-        },
-        responseType: 'stream'
+        }
       });
 
       if (error) {

@@ -74,8 +74,7 @@ export const PublicChatInterface = () => {
           prompt, 
           history, 
           conversationId: conversationIdRef.current 
-        },
-        responseType: 'stream'
+        }
       });
 
       if (error) {
