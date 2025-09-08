@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, Plus, LayoutTemplate, Trash2 } from "lucide-react";
+import { LogOut, Bot, Plus, LayoutTemplate, MessageSquareX } from "lucide-react";
 import { motion } from "framer-motion";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { Agent } from "./AppLayout";
@@ -57,7 +57,7 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat,
             disabled={!activeAgentId}
             title="Limpiar historial de chat"
           >
-            <Trash2 className="w-4 h-4" />
+            <MessageSquareX className="w-4 h-4" />
           </Button>
         </div>
         

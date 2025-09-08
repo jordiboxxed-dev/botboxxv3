@@ -240,7 +240,7 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
                   </Link>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500">
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500" title="Eliminar agente">
                         <Trash2 className="w-5 h-5" />
                       </Button>
                     </AlertDialogTrigger>
