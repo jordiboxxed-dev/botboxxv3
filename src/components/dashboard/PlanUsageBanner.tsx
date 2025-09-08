@@ -26,6 +26,9 @@ export const PlanUsageBanner = () => {
     isTrialActive,
   } = usageInfo;
 
+  // Reemplaza esta URL con tu enlace de WhatsApp
+  const whatsappLink = "https://wa.me/TUNUMEROAQUI?text=Hola!%20Estoy%20interesado%20en%20actualizar%20mi%20plan%20en%20BotBoxx.";
+
   if (plan === 'admin') {
     return (
       <Card className="bg-black/30 border-blue-400/50 text-white w-full max-w-4xl">
@@ -67,7 +70,11 @@ export const PlanUsageBanner = () => {
               </p>
             )}
           </div>
-          <Button>Actualizar Plan</Button>
+          <Button asChild>
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+              Actualizar Plan
+            </a>
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
