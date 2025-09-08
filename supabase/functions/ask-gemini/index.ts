@@ -114,7 +114,19 @@ serve(async (req) => {
         ],
     });
 
-    const result = await chat.sendMessageStream(prompt);
+    let result;
+    const maxRetries = 3;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        result = await chat.sendMessageStream(prompt);
+        break; // Si tiene éxito, salimos del bucle
+      } catch (error) {
+        if (i === maxRetries - 1) throw error; // Si es el último intento, lanzamos el error
+        const delay = Math.pow(2, i) * 1000; // Espera exponencial: 1s, 2s, 4s
+        console.log(`Intento ${i + 1} fallido. Reintentando en ${delay}ms...`);
+        await new Promise(res => setTimeout(res, delay));
+      }
+    }
 
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
