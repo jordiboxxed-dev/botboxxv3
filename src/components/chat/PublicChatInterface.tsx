@@ -68,30 +68,25 @@ export const PublicChatInterface = () => {
 
     try {
       const history = messages;
-      const response = await fetch(`https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/ask-public-agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5YWdxaGNqZnVodGpvZXFzaHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxMDEwOTksImV4cCI6MjA3MjY3NzA5OX0.b8-BTufObxnbCUaPO9SHeN4pQVJ6fHvTb1NYC1jFKVo",
-        },
-        body: JSON.stringify({ 
+      const { data: stream, error } = await supabase.functions.invoke("ask-public-agent", {
+        body: { 
           agentId, 
           prompt, 
           history, 
           conversationId: conversationIdRef.current 
-        }),
+        },
+        responseType: 'stream'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (error) {
+        throw error;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
+      if (!stream) {
         throw new Error("No se pudo leer la respuesta del servidor.");
       }
       
+      const reader = stream.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 

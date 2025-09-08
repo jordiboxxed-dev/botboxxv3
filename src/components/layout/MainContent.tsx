@@ -79,9 +79,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
     setIsLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!user || !session) {
+    if (!user) {
         showError("Usuario no autenticado. Por favor, inicia sesión de nuevo.");
         setIsLoading(false);
         return;
@@ -104,31 +102,25 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       
       const history = messages;
 
-      const response = await fetch(`https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/ask-gemini`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5YWdxaGNqZnVodGpvZXFzaHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxMDEwOTksImV4cCI6MjA3MjY3NzA5OX0.b8-BTufObxnbCUaPO9SHeN4pQVJ6fHvTb1NYC1jFKVo",
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ 
+      const { data: stream, error } = await supabase.functions.invoke("ask-gemini", {
+        body: {
           agentId: selectedAgent.id,
-          prompt, 
-          history, 
-          systemPrompt 
-        }),
+          prompt,
+          history,
+          systemPrompt
+        },
+        responseType: 'stream'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (error) {
+        throw error;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
+      if (!stream) {
         throw new Error("No se pudo leer la respuesta del servidor.");
       }
       
+      const reader = stream.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 
