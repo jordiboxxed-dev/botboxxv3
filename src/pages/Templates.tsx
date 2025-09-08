@@ -120,16 +120,23 @@ const Templates = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
+          transition={{ duration: 0.5 }}
+          className="w-full mb-8"
         >
-          <div>
-            <h1 className="text-3xl font-bold text-white">Plantillas de Agentes</h1>
-            <p className="text-gray-400">Selecciona una plantilla para crear tu agente personalizado</p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="text-left">
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
+                Plantillas de Agentes
+              </h1>
+              <p className="text-lg text-gray-400">Selecciona una plantilla para crear tu agente personalizado.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button onClick={() => navigate('/create-agent')} variant="outline" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Crear desde cero
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => navigate('/create-agent')} variant="outline" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Crear desde cero
-          </Button>
         </motion.div>
 
         <div className="mb-10">
