@@ -50,7 +50,7 @@ export const ChatWidget = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100vh-5rem)] max-h-[600px] relative"
+            className="w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100dvh-5rem)] max-h-[600px] relative"
           >
             <PublicChatInterface />
             <Button 

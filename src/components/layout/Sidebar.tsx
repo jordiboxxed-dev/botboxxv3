@@ -39,7 +39,7 @@ export const Sidebar = ({ userAgents, activeAgentId, onDeleteAgent, onLinkClick 
         <h1 className="text-2xl font-bold text-white">Agentes IA</h1>
       </Link>
       
-      <nav className="flex-1 flex flex-col gap-3 overflow-y-auto">
+      <nav className="flex-1 flex flex-col gap-3 overflow-y-auto px-1">
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
