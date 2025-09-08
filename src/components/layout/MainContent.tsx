@@ -1,25 +1,14 @@
 import { Agent as DbAgent } from "./AppLayout";
 import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
-import { Bot, Settings, Trash2, Menu, Code, MessageCircle, BookOpen, Copy, Check } from "lucide-react";
+import { Bot, Settings, Menu, Code, MessageCircle, BookOpen, Copy, Check, MessageSquareX } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Link } from "react-router-dom";
 import { KnowledgeSource, KnowledgeSourceManager } from "@/components/knowledge/KnowledgeSourceManager";
 import { EmbedDialog } from "@/components/agents/EmbedDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +19,7 @@ type Agent = DbAgent | MockAgent;
 interface MainContentProps {
   selectedAgent: Agent | null;
   onMenuClick?: () => void;
+  onClearChat: () => void;
 }
 
 interface Message {
@@ -37,8 +27,7 @@ interface Message {
   content: string;
 }
 
-export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) => {
-  const navigate = useNavigate();
+export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainContentProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
@@ -176,21 +165,6 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
     }
   };
 
-  const handleDeleteAgent = async () => {
-    if (!selectedAgent) return;
-    const { error } = await supabase
-      .from('agents')
-      .update({ deleted_at: new Date().toISOString() }) // Soft delete
-      .eq('id', selectedAgent.id);
-
-    if (error) {
-      showError("Error al eliminar el agente: " + error.message);
-    } else {
-      showSuccess("Agente eliminado correctamente.");
-      navigate('/dashboard');
-    }
-  };
-
   const handleCopyLink = () => {
     if (!selectedAgent) return;
     const publicUrl = `${window.location.origin}/chat/${selectedAgent.id}`;
@@ -227,38 +201,20 @@ export const MainContent = ({ selectedAgent, onMenuClick }: MainContentProps) =>
                   <p className="text-sm text-gray-400">{selectedAgent.description}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={handleCopyLink}>
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Limpiar historial de chat" onClick={onClearChat}>
+                    <MessageSquareX className="w-5 h-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Copiar enlace público" onClick={handleCopyLink}>
                     {hasCopiedLink ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={() => setIsEmbedDialogOpen(true)}>
+                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Incrustar widget" onClick={() => setIsEmbedDialogOpen(true)}>
                     <Code className="w-5 h-5" />
                   </Button>
                   <Link to={`/agent/${selectedAgent.id}/edit`}>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Editar agente">
                       <Settings className="w-5 h-5" />
                     </Button>
                   </Link>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500" title="Eliminar agente">
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Esto eliminará permanentemente el agente y todos sus mensajes y fuentes de conocimiento asociadas.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAgent} className="bg-red-600 hover:bg-red-700">
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </header>
               <div className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">

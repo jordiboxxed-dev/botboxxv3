@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "./Sidebar";
 import { MainContent } from "./MainContent";
 import { Agent as MockAgent } from "@/data/mock-agents";
@@ -32,31 +32,35 @@ export const AppLayout = () => {
   const isMobile = useIsMobile();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const fetchAgents = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate('/login');
+      return { agents: [], error: 'No user' };
+    }
+
+    const { data: agents, error } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('user_id', user.id)
+      .is('deleted_at', null); // Fetch only non-deleted agents
+
+    if (error) {
+      console.error("Error fetching agents:", error);
+      return { agents: [], error: error.message };
+    }
+    
+    setUserAgents(agents || []);
+    return { agents: agents || [], error: null };
+  }, [navigate]);
+
   useEffect(() => {
-    const fetchAgentsAndSetSelected = async () => {
+    const fetchAndSetData = async () => {
       setIsLoading(true);
+      const { agents } = await fetchAgents();
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      const { data: agents, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error("Error fetching agents:", error);
-        setIsLoading(false);
-        return;
-      }
-      
-      setUserAgents(agents || []);
-
       if (agentId) {
-        const agentFromDb = agents?.find(a => a.id === agentId);
+        const agentFromDb = agents.find(a => a.id === agentId);
         if (agentFromDb) {
           setSelectedAgent(agentFromDb);
         } else {
@@ -66,12 +70,10 @@ export const AppLayout = () => {
       } else {
         setSelectedAgent(null);
       }
-
       setIsLoading(false);
     };
-
-    fetchAgentsAndSetSelected();
-  }, [agentId, navigate]);
+    fetchAndSetData();
+  }, [agentId, fetchAgents, navigate]);
 
   const handleClearChat = async () => {
     if (!selectedAgent) {
@@ -97,6 +99,23 @@ export const AppLayout = () => {
     }
   };
 
+  const handleDeleteAgent = async (agentToDeleteId: string) => {
+    const { error } = await supabase
+      .from('agents')
+      .update({ deleted_at: new Date().toISOString() }) // Soft delete
+      .eq('id', agentToDeleteId);
+
+    if (error) {
+      showError("Error al eliminar el agente: " + error.message);
+    } else {
+      showSuccess("Agente eliminado correctamente.");
+      await fetchAgents(); // Refresh the agent list
+      if (agentId === agentToDeleteId) {
+        navigate('/dashboard'); // Navigate away if deleting the active agent
+      }
+    }
+  };
+
   if (isLoading) {
     return <SkeletonLoader />;
   }
@@ -108,9 +127,8 @@ export const AppLayout = () => {
           <SheetContent side="left" className="p-0 w-80 bg-black/50 backdrop-blur-lg border-r-0">
             <Sidebar
               userAgents={userAgents}
-              onAgentSelect={() => {}}
               activeAgentId={agentId}
-              onClearChat={handleClearChat}
+              onDeleteAgent={handleDeleteAgent}
               onLinkClick={() => setIsSidebarOpen(false)}
             />
           </SheetContent>
@@ -119,6 +137,7 @@ export const AppLayout = () => {
           key={chatKey} 
           selectedAgent={selectedAgent} 
           onMenuClick={() => setIsSidebarOpen(true)} 
+          onClearChat={handleClearChat}
         />
       </div>
     );
@@ -129,12 +148,15 @@ export const AppLayout = () => {
       <div className="w-80 h-screen flex flex-col bg-black/30 backdrop-blur-lg border-r border-white/10">
         <Sidebar
           userAgents={userAgents}
-          onAgentSelect={setSelectedAgent}
           activeAgentId={agentId}
-          onClearChat={handleClearChat}
+          onDeleteAgent={handleDeleteAgent}
         />
       </div>
-      <MainContent key={chatKey} selectedAgent={selectedAgent} />
+      <MainContent 
+        key={chatKey} 
+        selectedAgent={selectedAgent} 
+        onClearChat={handleClearChat} 
+      />
     </div>
   );
 };

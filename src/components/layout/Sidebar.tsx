@@ -1,20 +1,30 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, Plus, LayoutTemplate, MessageSquareX } from "lucide-react";
+import { LogOut, Bot, Plus, LayoutTemplate, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AgentCard } from "@/components/agents/AgentCard";
 import { Agent } from "./AppLayout";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SidebarProps {
   userAgents: Agent[];
-  onAgentSelect: (agent: Agent) => void;
   activeAgentId?: string;
-  onClearChat: () => void;
+  onDeleteAgent: (agentId: string) => void;
   onLinkClick?: () => void;
 }
 
-export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat, onLinkClick }: SidebarProps) => {
+export const Sidebar = ({ userAgents, activeAgentId, onDeleteAgent, onLinkClick }: SidebarProps) => {
   const navigate = useNavigate();
 
   const handleNavigate = (path: string) => {
@@ -49,31 +59,44 @@ export const Sidebar = ({ userAgents, onAgentSelect, activeAgentId, onClearChat,
         <div className="my-2 border-t border-white/10"></div>
         <div className="flex justify-between items-center px-2 mb-2">
           <h2 className="text-sm font-semibold text-gray-400">Mis Agentes</h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClearChat} 
-            className="h-7 w-7 text-gray-400 hover:text-white hover:bg-white/10"
-            disabled={!activeAgentId}
-            title="Limpiar historial de chat"
-          >
-            <MessageSquareX className="w-4 h-4" />
-          </Button>
         </div>
         
         {userAgents.length > 0 ? userAgents.map((agent, index) => (
-          <Link to={`/agent/${agent.id}`} key={agent.id} onClick={onLinkClick} className={`rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
-            <AgentCard 
-              agent={{
-                ...agent,
-                description: agent.description || '',
-                avatar: 'bot',
-                systemPrompt: agent.system_prompt || ''
-              }}
-              onClick={() => {}}
-              index={index} 
-            />
-          </Link>
+          <div key={agent.id} className={`flex items-center gap-2 rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
+            <Link to={`/agent/${agent.id}`} onClick={onLinkClick} className="flex-grow">
+              <AgentCard 
+                agent={{
+                  ...agent,
+                  description: agent.description || '',
+                  avatar: 'bot',
+                  systemPrompt: agent.system_prompt || ''
+                }}
+                onClick={() => {}}
+                index={index} 
+              />
+            </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 flex-shrink-0" title="Eliminar agente">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar agente "{agent.name}"?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción es permanente. El agente y todo su conocimiento asociado serán eliminados.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDeleteAgent(agent.id)} className="bg-red-600 hover:bg-red-700">
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )) : (
           <p className="text-sm text-gray-500 text-center px-4">No has creado ningún agente todavía.</p>
         )}
