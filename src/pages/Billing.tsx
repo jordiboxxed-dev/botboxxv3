@@ -57,9 +57,10 @@ const Billing = () => {
       
       window.location.href = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating subscription:", error);
-      showError("Error al procesar la suscripción: " + (error as Error).message);
+      const errorMessage = error.context?.json?.error || error.message || "Ocurrió un error desconocido.";
+      showError("Error al procesar la suscripción: " + errorMessage);
       setIsProcessing(false);
     }
   };
