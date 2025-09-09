@@ -25,6 +25,8 @@ interface UserStat {
   subscribed_at: string | null;
   agent_count: number;
   message_count: number;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 interface AnalyticsData {
@@ -135,21 +137,26 @@ const AdminDashboard = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-white/20 hover:bg-transparent">
+                      <TableHead className="text-gray-200">Nombre</TableHead>
                       <TableHead className="text-gray-200">Email</TableHead>
-                      <TableHead className="text-gray-200">Fecha de Registro</TableHead>
+                      <TableHead className="text-gray-200">Registro</TableHead>
                       <TableHead className="text-gray-200 text-right">Agentes</TableHead>
                       <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.usersWithStats.map((user) => (
-                      <TableRow key={user.id} className="border-white/10">
-                        <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
-                        <TableCell className="text-gray-300">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
-                        <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
-                        <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
-                      </TableRow>
-                    ))}
+                    {data.usersWithStats.map((user) => {
+                      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                      return (
+                        <TableRow key={user.id} className="border-white/10">
+                          <TableCell className="font-medium text-gray-100">{fullName || 'N/A'}</TableCell>
+                          <TableCell className="text-gray-300">{user.email}</TableCell>
+                          <TableCell className="text-gray-300">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
+                          <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
+                          <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -171,23 +178,28 @@ const AdminDashboard = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-white/20 hover:bg-transparent">
+                      <TableHead className="text-gray-200">Nombre</TableHead>
                       <TableHead className="text-gray-200">Email</TableHead>
                       <TableHead className="text-gray-200 text-right">Fecha de Suscripción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {subscribedUsers.length > 0 ? (
-                      subscribedUsers.map((user) => (
-                        <TableRow key={user.id} className="border-white/10">
-                          <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
-                          <TableCell className="text-right text-gray-300">
-                            {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      subscribedUsers.map((user) => {
+                        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                        return (
+                          <TableRow key={user.id} className="border-white/10">
+                            <TableCell className="font-medium text-gray-100">{fullName || 'N/A'}</TableCell>
+                            <TableCell className="text-gray-300">{user.email}</TableCell>
+                            <TableCell className="text-right text-gray-300">
+                              {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={2} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={3} className="text-center text-gray-500 py-8">
                           No hay suscripciones recientes.
                         </TableCell>
                       </TableRow>

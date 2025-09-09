@@ -19,22 +19,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // Fetch all users using the admin API
     const { data: { users: usersData }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     if (usersError) throw usersError;
 
-    // Fetch all profiles to get subscription dates
     const { data: profilesData, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, subscribed_at');
+      .select('id, subscribed_at, first_name, last_name');
     if (profilesError) throw profilesError;
 
-    const subscriptionDates = profilesData.reduce((acc, profile) => {
-      acc[profile.id] = profile.subscribed_at;
+    const profilesMap = profilesData.reduce((acc, profile) => {
+      acc[profile.id] = {
+        subscribed_at: profile.subscribed_at,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+      };
       return acc;
     }, {});
 
-    // Fetch all agents
     const { data: agentsData, error: agentsError } = await supabaseAdmin
       .from('agents')
       .select('user_id');
@@ -45,7 +46,6 @@ serve(async (req) => {
       return acc;
     }, {});
 
-    // Fetch all messages (private and public)
     const { data: privateMessages, error: privateMessagesError } = await supabaseAdmin
       .from('messages')
       .select('user_id');
@@ -65,12 +65,13 @@ serve(async (req) => {
       messageCounts[conv.user_id] = (messageCounts[conv.user_id] || 0) + messageCount;
     });
 
-    // Combine data
     const usersWithStats = usersData.map(user => ({
       id: user.id,
       email: user.email,
       created_at: user.created_at,
-      subscribed_at: subscriptionDates[user.id] || null,
+      subscribed_at: profilesMap[user.id]?.subscribed_at || null,
+      first_name: profilesMap[user.id]?.first_name || null,
+      last_name: profilesMap[user.id]?.last_name || null,
       agent_count: agentCounts[user.id] || 0,
       message_count: messageCounts[user.id] || 0,
     }));
