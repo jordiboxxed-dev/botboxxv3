@@ -46,7 +46,11 @@ serve(async (req) => {
 
         const { error } = await supabaseAdmin
           .from('profiles')
-          .update({ plan: 'premium', trial_ends_at: null })
+          .update({ 
+            plan: 'premium', 
+            trial_ends_at: null,
+            subscribed_at: new Date().toISOString() 
+          })
           .eq('id', userId);
 
         if (error) {

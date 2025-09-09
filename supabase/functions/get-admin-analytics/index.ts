@@ -19,16 +19,25 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // Correctly fetch all users using the admin API
+    // Fetch all users using the admin API
     const { data: { users: usersData }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-
     if (usersError) throw usersError;
+
+    // Fetch all profiles to get subscription dates
+    const { data: profilesData, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, subscribed_at');
+    if (profilesError) throw profilesError;
+
+    const subscriptionDates = profilesData.reduce((acc, profile) => {
+      acc[profile.id] = profile.subscribed_at;
+      return acc;
+    }, {});
 
     // Fetch all agents
     const { data: agentsData, error: agentsError } = await supabaseAdmin
       .from('agents')
       .select('user_id');
-
     if (agentsError) throw agentsError;
 
     const agentCounts = agentsData.reduce((acc, agent) => {
@@ -40,13 +49,11 @@ serve(async (req) => {
     const { data: privateMessages, error: privateMessagesError } = await supabaseAdmin
       .from('messages')
       .select('user_id');
-    
     if (privateMessagesError) throw privateMessagesError;
 
     const { data: publicConversations, error: publicConversationsError } = await supabaseAdmin
       .from('public_conversations')
       .select('user_id, public_messages(id)');
-
     if (publicConversationsError) throw publicConversationsError;
 
     const messageCounts = {};
@@ -54,7 +61,6 @@ serve(async (req) => {
       messageCounts[msg.user_id] = (messageCounts[msg.user_id] || 0) + 1;
     });
     publicConversations.forEach(conv => {
-      // @ts-ignore
       const messageCount = conv.public_messages ? conv.public_messages.length : 0;
       messageCounts[conv.user_id] = (messageCounts[conv.user_id] || 0) + messageCount;
     });
@@ -64,13 +70,13 @@ serve(async (req) => {
       id: user.id,
       email: user.email,
       created_at: user.created_at,
+      subscribed_at: subscriptionDates[user.id] || null,
       agent_count: agentCounts[user.id] || 0,
       message_count: messageCounts[user.id] || 0,
     }));
 
     const totalAgents = agentsData.length;
     const totalMessages = privateMessages.length + publicConversations.reduce((sum, conv) => {
-        // @ts-ignore
         const messageCount = conv.public_messages ? conv.public_messages.length : 0;
         return sum + messageCount;
     }, 0);

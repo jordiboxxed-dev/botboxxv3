@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Bot, MessageSquare, ArrowLeft } from "lucide-react";
+import { Users, Bot, MessageSquare, ArrowLeft, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ interface UserStat {
   id: string;
   email: string;
   created_at: string;
+  subscribed_at: string | null;
   agent_count: number;
   message_count: number;
 }
@@ -87,6 +88,10 @@ const AdminDashboard = () => {
     return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Error al cargar los datos.</div>;
   }
 
+  const subscribedUsers = data.usersWithStats
+    .filter(user => user.subscribed_at)
+    .sort((a, b) => new Date(b.subscribed_at!).getTime() - new Date(a.subscribed_at!).getTime());
+
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-8 text-white">
       <div className="max-w-7xl mx-auto">
@@ -116,39 +121,83 @@ const AdminDashboard = () => {
           <StatCard title="Total de Mensajes" value={data.totalMessages} icon={<MessageSquare className="h-4 w-4 text-gray-400" />} />
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="bg-black/30 border-white/10">
-            <CardHeader>
-              <CardTitle>Usuarios Registrados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/20 hover:bg-transparent">
-                    <TableHead className="text-gray-200">Email</TableHead>
-                    <TableHead className="text-gray-200">Fecha de Registro</TableHead>
-                    <TableHead className="text-gray-200 text-right">Agentes Creados</TableHead>
-                    <TableHead className="text-gray-200 text-right">Mensajes Totales</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.usersWithStats.map((user) => (
-                    <TableRow key={user.id} className="border-white/10">
-                      <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
-                      <TableCell className="text-gray-300">{format(new Date(user.created_at), "d 'de' MMMM, yyyy", { locale: es })}</TableCell>
-                      <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
-                      <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="bg-black/30 border-white/10 h-full">
+              <CardHeader>
+                <CardTitle>Usuarios Registrados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20 hover:bg-transparent">
+                      <TableHead className="text-gray-200">Email</TableHead>
+                      <TableHead className="text-gray-200">Fecha de Registro</TableHead>
+                      <TableHead className="text-gray-200 text-right">Agentes</TableHead>
+                      <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  </TableHeader>
+                  <TableBody>
+                    {data.usersWithStats.map((user) => (
+                      <TableRow key={user.id} className="border-white/10">
+                        <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
+                        <TableCell className="text-gray-300">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
+                        <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
+                        <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Card className="bg-black/30 border-white/10 h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-yellow-400" />
+                  Suscripciones Recientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20 hover:bg-transparent">
+                      <TableHead className="text-gray-200">Email</TableHead>
+                      <TableHead className="text-gray-200 text-right">Fecha de Suscripción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subscribedUsers.length > 0 ? (
+                      subscribedUsers.map((user) => (
+                        <TableRow key={user.id} className="border-white/10">
+                          <TableCell className="font-medium text-gray-100">{user.email}</TableCell>
+                          <TableCell className="text-right text-gray-300">
+                            {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-gray-500 py-8">
+                          No hay suscripciones recientes.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

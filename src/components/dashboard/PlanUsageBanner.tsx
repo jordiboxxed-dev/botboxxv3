@@ -2,8 +2,9 @@ import { useUsage } from '@/hooks/useUsage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck, Instagram } from 'lucide-react';
+import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck, CreditCard } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Link } from 'react-router-dom';
 
 export const PlanUsageBanner = () => {
   const { usageInfo, isLoading } = useUsage();
@@ -25,8 +26,6 @@ export const PlanUsageBanner = () => {
     agentLimit,
     isTrialActive,
   } = usageInfo;
-
-  const upgradeLink = "https://www.instagram.com/jordishifter";
 
   if (plan === 'admin') {
     return (
@@ -70,10 +69,10 @@ export const PlanUsageBanner = () => {
             )}
           </div>
           <Button asChild>
-            <a href={upgradeLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-              <Instagram className="w-4 h-4" />
-              Contactar para Mejorar Plan
-            </a>
+            <Link to="/billing" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Mejorar Plan
+            </Link>
           </Button>
         </div>
       </CardHeader>
