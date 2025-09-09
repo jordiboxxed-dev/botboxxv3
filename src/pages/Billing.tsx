@@ -196,7 +196,7 @@ const Billing = () => {
               <CardDescription className="text-gray-300">Para uso profesional</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white mb-4">$29<span className="text-lg text-gray-300">/mes</span></div>
+              <div className="text-3xl font-bold text-white mb-4">$97<span className="text-lg text-gray-300">/mes</span></div>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-center text-gray-200">
                   <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
