@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,27 @@ import { useUsage } from "@/hooks/useUsage";
 
 const Billing = () => {
   const navigate = useNavigate();
-  const { usageInfo, isLoading } = useUsage();
+  const location = useLocation();
+  const { usageInfo, isLoading, refreshUsage } = useUsage();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+
+    if (status) {
+      if (status === 'success') {
+        showSuccess("¡Pago exitoso! Tu plan ha sido actualizado a Premium.");
+        refreshUsage();
+      } else if (status === 'failure') {
+        showError("El pago falló. Por favor, intenta de nuevo o contacta a soporte.");
+      } else if (status === 'pending') {
+        showSuccess("Tu pago está pendiente. Te notificaremos cuando se complete.");
+      }
+      // Limpiar los parámetros de la URL
+      navigate('/billing', { replace: true });
+    }
+  }, [location, navigate, refreshUsage]);
 
   const handleSubscribe = async (plan: string) => {
     setIsProcessing(true);
@@ -23,30 +42,24 @@ const Billing = () => {
         return;
       }
 
-      // Create checkout preference
-      const response = await fetch('/api/create-preference', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error: invokeError } = await supabase.functions.invoke('create-mercadopago-preference', {
+        body: {
           userId: user.id,
           plan,
           userEmail: user.email,
-        }),
+        }
       });
 
-      const { preferenceId, error } = await response.json();
-      
-      if (error) {
-        throw new Error(error);
-      }
+      if (invokeError) throw invokeError;
 
-      // Redirect to MercadoPago checkout
+      const { preferenceId, error: preferenceError } = data;
+      if (preferenceError) throw new Error(preferenceError);
+      
       window.location.href = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`;
+
     } catch (error) {
       console.error("Error creating subscription:", error);
-      showError("Error al procesar la suscripción. Por favor, inténtalo de nuevo.");
+      showError("Error al procesar la suscripción: " + (error as Error).message);
       setIsProcessing(false);
     }
   };
@@ -119,7 +132,7 @@ const Billing = () => {
               ) : plan === 'admin' ? (
                 <span>Plan administrador con acceso ilimitado.</span>
               ) : (
-                <span>Plan gratuito con límites de uso.</span>
+                <span>Tu plan actual es {plan}.</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -127,17 +140,10 @@ const Billing = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-white capitalize">
-                  {plan === 'admin' ? 'Administrador' : plan === 'trial' ? 'Prueba' : 'Gratuito'}
+                  {plan === 'admin' ? 'Administrador' : plan}
                 </h3>
-                <p className="text-gray-400">
-                  {plan === 'admin' 
-                    ? 'Acceso ilimitado a todas las funcionalidades' 
-                    : plan === 'trial' 
-                      ? 'Acceso completo por tiempo limitado' 
-                      : 'Funcionalidades básicas con límites'}
-                </p>
               </div>
-              {plan !== 'admin' && (
+              {plan !== 'admin' && plan !== 'premium' && (
                 <Button 
                   onClick={() => handleSubscribe('premium')} 
                   disabled={isProcessing}
@@ -217,16 +223,13 @@ const Billing = () => {
               </ul>
               <Button 
                 onClick={() => handleSubscribe('premium')} 
-                disabled={isProcessing || plan === 'admin'}
+                disabled={isProcessing || plan === 'admin' || plan === 'premium'}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Procesando...
-                  </>
-                ) : plan === 'admin' ? (
-                  "Plan actual"
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
+                ) : plan === 'premium' ? (
+                  "Plan Actual"
                 ) : (
                   "Seleccionar plan"
                 )}
