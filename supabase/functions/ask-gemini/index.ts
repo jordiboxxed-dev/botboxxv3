@@ -84,7 +84,7 @@ serve(async (req) => {
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
         match_threshold: 0.65,
-        match_count: 15,
+        match_count: 5, // OPTIMIZACIÓN: Reducido de 15 a 5
         source_ids: sourceIds
       });
       if (matchError) throw matchError;
@@ -112,7 +112,8 @@ serve(async (req) => {
         history: [
             { role: "user", parts: [{ text: metaPrompt }] },
             { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado." }] },
-            ...(history || []).map(msg => ({
+            // OPTIMIZACIÓN: Limitar el historial a los últimos 6 mensajes
+            ...((history || []).slice(-6)).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
             }))
