@@ -1,6 +1,6 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { MercadoPagoConfig, Payment } from 'https://esm.sh/mercadopago@2.0.9';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,10 +22,19 @@ serve(async (req) => {
       const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
       if (!accessToken) throw new Error("MercadoPago access token not configured.");
 
-      const client = new MercadoPagoConfig({ accessToken });
-      const paymentClient = new Payment(client);
+      console.log(`Fetching payment details for ID: ${paymentId}`);
+      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
 
-      const payment = await paymentClient.get({ id: paymentId });
+      const payment = await paymentResponse.json();
+
+      if (!paymentResponse.ok) {
+        console.error("Error fetching payment from MercadoPago:", payment);
+        throw new Error(`Failed to fetch payment details: ${payment.message || paymentResponse.statusText}`);
+      }
 
       if (payment && payment.status === 'approved' && payment.external_reference) {
         const userId = payment.external_reference;
