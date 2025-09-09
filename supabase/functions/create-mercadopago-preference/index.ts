@@ -25,8 +25,10 @@ serve(async (req) => {
     console.log("Request body parsed:", body);
     const { userId, plan, userEmail } = body;
 
+    // Validación más específica
     if (!userId || !plan || !userEmail) {
       console.error("Validation failed: Missing parameters.");
+      console.error(`Received: userId=${userId}, plan=${plan}, userEmail=${userEmail}`);
       throw new Error("Faltan parámetros: userId, plan, y userEmail son requeridos.");
     }
     console.log(`Parameters received: userId=${userId}, plan=${plan}, userEmail=${userEmail}`);
@@ -37,18 +39,34 @@ serve(async (req) => {
       console.error("MERCADOPAGO_ACCESS_TOKEN is not set.");
       throw new Error("La clave de acceso de MercadoPago no está configurada en los secretos.");
     }
+    
+    // Verificar que el token tenga un formato válido (más flexible)
+    if (accessToken.length < 20 || (!accessToken.includes('-') && !accessToken.includes('_'))) {
+      console.error("Invalid access token format:", accessToken.substring(0, 10) + "...");
+      throw new Error("El token de acceso de MercadoPago tiene un formato inválido.");
+    }
     console.log("MERCADOPAGO_ACCESS_TOKEN retrieved successfully.");
 
     console.log("Initializing MercadoPago client...");
-    const client = new MercadoPagoConfig({ accessToken });
+    const client = new MercadoPagoConfig({ 
+      accessToken,
+      options: {
+        timeout: 5000, // 5 segundos de timeout
+        idempotencyKey: `${userId}-${Date.now()}` // Clave de idempotencia única
+      }
+    });
+    
     const preferenceClient = new Preference(client);
     console.log("MercadoPago client initialized.");
 
+    // Construir los datos de preferencia con validaciones
     const preferenceData = {
       items: [
         {
-          id: "premium-plan",
+          id: `premium-plan-${userId}`, // ID único por usuario
           title: "BotBoxx - Plan Premium",
+          description: "Suscripción mensual al plan premium de BotBoxx",
+          category_id: "services", // Categoría específica
           quantity: 1,
           unit_price: 97,
           currency_id: "USD",
@@ -64,26 +82,87 @@ serve(async (req) => {
       },
       auto_return: "approved",
       external_reference: userId,
+      // Asegúrate de que la URL del webhook sea correcta y esté accesible
       notification_url: `https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/mercadopago-webhook`,
+      
+      // Configuraciones adicionales importantes
+      expires: true,
+      expiration_date_from: new Date().toISOString(),
+      expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 horas
+      
+      // Métodos de pago permitidos (opcional pero recomendado)
+      payment_methods: {
+        excluded_payment_types: [],
+        excluded_payment_methods: [],
+        installments: 1, // Solo pago en 1 cuota
+      },
+      
+      // Configuración de envío (si es necesario)
+      shipments: {
+        mode: "not_specified", // Para servicios digitales
+      }
     };
+    
     console.log("Preference data constructed:", JSON.stringify(preferenceData, null, 2));
 
     console.log("Creating MercadoPago preference...");
+    
+    // Crear la preferencia con manejo de errores específico
     const result = await preferenceClient.create({ body: preferenceData });
-    console.log("MercadoPago preference created successfully:", result);
+    
+    console.log("MercadoPago preference created successfully:");
+    console.log("Preference ID:", result.id);
+    console.log("Init Point:", result.init_point);
+    console.log("Sandbox Init Point:", result.sandbox_init_point);
+
+    // Validar que la respuesta sea correcta
+    if (!result || !result.id) {
+      console.error("Invalid response from MercadoPago:", result);
+      throw new Error("MercadoPago devolvió una respuesta inválida.");
+    }
 
     console.log("--- Function execution successful, sending response. ---");
-    return new Response(JSON.stringify({ preferenceId: result.id }), {
+    return new Response(JSON.stringify({ 
+      preferenceId: result.id,
+      initPoint: result.init_point,
+      sandboxInitPoint: result.sandbox_init_point
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    
   } catch (error) {
     console.error("--- An error occurred in the function ---");
+    console.error("Error type:", error.constructor.name);
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Si es un error específico de MercadoPago, proporcionar más contexto
+    if (error.cause) {
+      console.error("Error cause:", error.cause);
+    }
+    
+    // Devolver un error más específico al cliente
+    let errorMessage = "Error interno del servidor.";
+    let statusCode = 500;
+    
+    if (error.message.includes("access token")) {
+      errorMessage = "Error de configuración de MercadoPago.";
+      statusCode = 500;
+    } else if (error.message.includes("parámetros")) {
+      errorMessage = error.message;
+      statusCode = 400;
+    } else if (error.name === "TypeError" && error.message.includes("fetch")) {
+      errorMessage = "Error de conectividad con MercadoPago.";
+      statusCode = 503;
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: error.message
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: statusCode,
     });
   }
 });

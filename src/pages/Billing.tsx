@@ -34,32 +34,106 @@ const Billing = () => {
 
   const handleSubscribe = async (plan: string) => {
     setIsProcessing(true);
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Verificar autenticación
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw new Error("Error de autenticación.");
+      }
+      
       if (!user) {
         showError("Debes iniciar sesión para suscribirte.");
         setIsProcessing(false);
         return;
       }
-
-      const { data, error: invokeError } = await supabase.functions.invoke('create-mercadopago-preference', {
-        body: {
-          userId: user.id,
-          plan,
-          userEmail: user.email,
-        }
-      });
-
-      if (invokeError) throw invokeError;
-
-      const { preferenceId, error: preferenceError } = data;
-      if (preferenceError) throw new Error(preferenceError);
+  
+      // Validar email del usuario
+      if (!user.email) {
+        showError("Tu cuenta no tiene un email asociado. Contacta soporte.");
+        setIsProcessing(false);
+        return;
+      }
+  
+      console.log("Invoking MercadoPago preference creation...");
+      console.log("User ID:", user.id);
+      console.log("User Email:", user.email);
+      console.log("Plan:", plan);
+  
+      // Invocar la función de Edge con timeout
+      const { data, error: invokeError } = await Promise.race([
+        supabase.functions.invoke('create-mercadopago-preference', {
+          body: {
+            userId: user.id,
+            plan,
+            userEmail: user.email,
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout: La operación tardó demasiado")), 30000)
+        )
+      ]) as any;
+  
+      // Manejar errores de la invocación
+      if (invokeError) {
+        console.error("Invoke error:", invokeError);
+        throw invokeError;
+      }
+  
+      console.log("Function response:", data);
+  
+      // Validar respuesta
+      if (!data) {
+        throw new Error("No se recibió respuesta del servidor.");
+      }
+  
+      // Extraer datos de la respuesta
+      const { preferenceId, error: preferenceError, initPoint } = data;
       
-      window.location.href = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`;
-
+      if (preferenceError) {
+        console.error("Preference error:", preferenceError);
+        throw new Error(preferenceError);
+      }
+  
+      if (!preferenceId) {
+        console.error("No preference ID received:", data);
+        throw new Error("No se pudo generar la preferencia de pago.");
+      }
+  
+      console.log("Preference created successfully:", preferenceId);
+      
+      // Redirigir a MercadoPago
+      // Usar initPoint si está disponible, sino construir la URL
+      const redirectUrl = initPoint || `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`;
+      
+      console.log("Redirecting to:", redirectUrl);
+      window.location.href = redirectUrl;
+  
     } catch (error: any) {
       console.error("Error creating subscription:", error);
-      const errorMessage = error.context?.json?.error || error.message || "Ocurrió un error desconocido.";
+      
+      let errorMessage = "Ocurrió un error desconocido.";
+      
+      // Manejar diferentes tipos de errores
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.context?.json?.error) {
+        errorMessage = error.context.json.error;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Errores específicos comunes
+      if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
+        errorMessage = "La operación tardó demasiado. Intenta nuevamente.";
+      } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+        errorMessage = "Error de conexión. Verifica tu internet e intenta nuevamente.";
+      } else if (errorMessage.includes("unauthorized") || errorMessage.includes("auth")) {
+        errorMessage = "Error de autenticación. Inicia sesión nuevamente.";
+      }
+      
       showError("Error al procesar la suscripción: " + errorMessage);
       setIsProcessing(false);
     }
