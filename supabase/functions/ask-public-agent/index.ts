@@ -1,5 +1,5 @@
 // @ts-nocheck
-// Force redeploy v2
+// Force redeploy v3 - Forcing gemini-1.5-flash to address cost issues.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai";
@@ -23,6 +23,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log("--- ask-public-agent function invoked: Enforcing use of gemini-1.5-flash ---");
     const { agentId, prompt, history, conversationId } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
@@ -71,6 +72,8 @@ serve(async (req) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    
+    console.log("Initializing chat model with 'gemini-1.5-flash'.");
     const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
     const { system_prompt: rawSystemPrompt, company_name: companyName } = agentData;
@@ -82,8 +85,6 @@ serve(async (req) => {
 
     let context = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-        // OPTIMIZACIÓN: Se eliminó la generación de documento hipotético (HyDE) para reducir costos y latencia.
-        // Se utiliza directamente el prompt del usuario para la búsqueda semántica.
         const promptEmbedding = await embeddingModel.embedContent(prompt);
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
