@@ -16,31 +16,35 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// Función mejorada para dividir el texto en fragmentos
-function chunkText(text, chunkSize = 1000, chunkOverlap = 200) {
-  const lines = text.split('\n').filter(line => line.trim().length > 2);
+// --- Nueva Función de Fragmentación Inteligente ---
+function chunkText(text, chunkSize = 1500, chunkOverlap = 200) {
+  if (!text) return [];
 
-  // Heurística: si hay muchas líneas y son relativamente cortas, trátalo como una lista.
-  const avgLineLength = lines.length > 0 ? text.length / lines.length : 0;
-  if (lines.length > 5 && avgLineLength < 300) {
-    console.log(`Detected list-like format (${lines.length} lines, avg ${avgLineLength.toFixed(0)} chars/line). Chunking per line.`);
-    return lines;
-  }
+  // 1. Dividir el texto en bloques lógicos (párrafos, secciones) usando dobles saltos de línea.
+  const blocks = text.split(/\n\s*\n/).filter(block => block.trim().length > 0);
+  const finalChunks = [];
 
-  console.log(`Detected paragraph format. Chunking by size (${chunkSize} chars).`);
-  const chunks = [];
-  let i = 0;
-  while (i < text.length) {
-    const end = Math.min(i + chunkSize, text.length);
-    chunks.push(text.slice(i, end));
-    i += chunkSize - chunkOverlap;
-    if (i + chunkOverlap >= text.length && i < text.length) {
-      // Asegurarse de que el último trozo se incluya si es más pequeño que el overlap
-      chunks.push(text.slice(i));
-      break;
+  for (const block of blocks) {
+    // 2. Si un bloque es más pequeño que el tamaño del fragmento, se considera un fragmento completo.
+    if (block.length <= chunkSize) {
+      finalChunks.push(block);
+    } else {
+      // 3. Si un bloque es demasiado grande, se divide por el método de ventana deslizante.
+      console.log(`Bloque grande detectado (${block.length} caracteres). Aplicando división por tamaño.`);
+      let i = 0;
+      while (i < block.length) {
+        const end = Math.min(i + chunkSize, block.length);
+        finalChunks.push(block.slice(i, end));
+        i += chunkSize - chunkOverlap;
+        if (i + chunkOverlap >= block.length && i < block.length) {
+          finalChunks.push(block.slice(i));
+          break;
+        }
+      }
     }
   }
-  return chunks.filter(chunk => chunk.trim().length > 0);
+
+  return finalChunks.filter(chunk => chunk.trim().length > 10); // Filtra fragmentos muy pequeños
 }
 
 serve(async (req) => {
@@ -62,7 +66,7 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    // 1. Dividir el texto en fragmentos
+    // 1. Dividir el texto en fragmentos usando la nueva lógica inteligente
     const chunks = chunkText(textContent);
 
     if (chunks.length === 0) {
