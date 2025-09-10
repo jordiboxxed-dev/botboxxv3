@@ -102,6 +102,10 @@ serve(async (req) => {
       **Instrucciones del Agente (Personalidad y Tono):**
       ${systemPrompt}
       ---
+      **Manejo de Conversación y Contexto:**
+      - Antes de responder, revisa el historial de la conversación.
+      - Si la pregunta actual es corta o una continuación (ej: "¿y el de 9000?", "¿y el otro?"), utiliza el contexto de los mensajes anteriores para entender la pregunta completa. Por ejemplo, si la pregunta anterior fue sobre "inverter de 12000", y la nueva es "¿y el de 9000?", debes entender que el usuario está preguntando por el "inverter de 9000".
+      ---
       **Reglas de Respuesta:**
       1.  Si la respuesta a la pregunta del usuario se encuentra en el 'Contexto', responde utilizando esa información de manera precisa.
       2.  Si la respuesta no se encuentra en el 'Contexto', debes decir CLARAMENTE que no encontraste la información en tu base de conocimiento. NO des respuestas genéricas como "No tengo acceso a precios en tiempo real". Di "No encontré la información sobre [tema de la pregunta] en mi base de conocimiento."
@@ -111,7 +115,7 @@ serve(async (req) => {
     const chat = generativeModel.startChat({
         history: [
             { role: "user", parts: [{ text: metaPrompt }] },
-            { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado." }] },
+            { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado y recordaré el historial de la conversación para entender preguntas de seguimiento." }] },
             ...((history || []).slice(-6)).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
