@@ -96,13 +96,13 @@ export const KnowledgeSourceManager = ({ agentId, onSourcesChange }: KnowledgeSo
         ) : sources.length > 0 ? (
           sources.map(source => (
             <div key={source.id} className="flex items-center justify-between bg-black/30 p-2 rounded-md">
-              <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-3 overflow-hidden">
                 {getIconForType(source.type)}
                 <span className="text-sm text-white truncate" title={source.name}>{source.name}</span>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500 flex-shrink-0 ml-2">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </AlertDialogTrigger>
