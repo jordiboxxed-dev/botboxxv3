@@ -1,13 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
 
 // Función mejorada para dividir el texto en fragmentos
 function chunkText(text, chunkSize = 1000, chunkOverlap = 200) {
@@ -53,9 +60,9 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
     const genAI = new GoogleGenerativeAI(apiKey);
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    // 1. Dividir el texto en fragmentos con la nueva lógica
+    // 1. Dividir el texto en fragmentos
     const chunks = chunkText(textContent);
 
     if (chunks.length === 0) {
@@ -65,15 +72,22 @@ serve(async (req) => {
       });
     }
 
-    // 2. Generar embeddings para cada fragmento
-    const embeddings = await embeddingModel.batchEmbedContents({
-      requests: chunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
-    });
+    // 2. Generar embeddings para cada fragmento en lotes para no exceder el límite de la API
+    const BATCH_SIZE = 100;
+    const allEmbeddings = [];
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+      const embeddingsResponse = await embeddingModel.batchEmbedContents({
+        requests: batchChunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
+      });
+      allEmbeddings.push(...embeddingsResponse.embeddings);
+    }
 
     const newChunks = chunks.map((chunk, i) => ({
       source_id: sourceId,
       content: chunk,
-      embedding: embeddings.embeddings[i].values,
+      embedding: allEmbeddings[i].values,
     }));
 
     // 3. Guardar los fragmentos y sus embeddings en la base de datos

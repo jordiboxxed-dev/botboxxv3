@@ -71,21 +71,19 @@ serve(async (req) => {
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
-    const hydePrompt = `Eres un experto en reformular preguntas para sistemas de búsqueda semántica. Transforma la siguiente pregunta del usuario en un párrafo hipotético que contenga la respuesta más probable. Este párrafo se usará para encontrar la información más relevante en una base de datos. Extrae y enfatiza nombres de productos, características clave y la intención principal. Pregunta del usuario: "${prompt}"`;
-    const hydeResult = await generativeModel.generateContent(hydePrompt);
-    const hypotheticalDocument = hydeResult.response.text();
-
     const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
     let context = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-      const promptEmbedding = await embeddingModel.embedContent(hypotheticalDocument);
+      // OPTIMIZACIÓN: Se eliminó la generación de documento hipotético (HyDE) para reducir costos y latencia.
+      // Se utiliza directamente el prompt del usuario para la búsqueda semántica.
+      const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
         match_threshold: 0.65,
-        match_count: 5, // OPTIMIZACIÓN: Reducido de 15 a 5
+        match_count: 5,
         source_ids: sourceIds
       });
       if (matchError) throw matchError;
@@ -113,7 +111,6 @@ serve(async (req) => {
         history: [
             { role: "user", parts: [{ text: metaPrompt }] },
             { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado." }] },
-            // OPTIMIZACIÓN: Limitar el historial a los últimos 6 mensajes
             ...((history || []).slice(-6)).map(msg => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.content }]
