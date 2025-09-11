@@ -137,7 +137,20 @@ serve(async (req) => {
       ];
       const generalChat = generativeModel.startChat({ history: generalHistory });
       const generalResult = await generalChat.sendMessageStream(prompt);
-      finalStream = generalResult.stream;
+      
+      // Convertir el generador asíncrono a un ReadableStream estándar
+      finalStream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          for await (const chunk of generalResult.stream) {
+            const text = chunk.text();
+            if (text) {
+              controller.enqueue(encoder.encode(text));
+            }
+          }
+          controller.close();
+        },
+      });
     }
 
     if (profileData.role !== 'admin') {
