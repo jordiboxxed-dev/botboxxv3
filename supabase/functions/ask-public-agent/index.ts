@@ -145,34 +145,20 @@ serve(async (req) => {
       const generalChat = generativeModel.startChat({ history: generalHistory });
       const generalResult = await generalChat.sendMessageStream(prompt);
       
-      // Convertir el generador asíncrono a un ReadableStream que se pueda duplicar (tee)
-      const readableStream = new ReadableStream({
-        async start(controller) {
-          const encoder = new TextEncoder();
-          for await (const chunk of generalResult.stream) {
-            const text = chunk.text();
-            if (text) {
-              controller.enqueue(encoder.encode(text));
-            }
-          }
-          controller.close();
-        },
-      });
-
-      const [stream1, stream2] = readableStream.tee();
+      // Necesitamos un Tee para poder leer el stream y enviarlo al cliente al mismo tiempo
+      const [stream1, stream2] = generalResult.stream.tee();
       finalStream = stream1;
 
       // Leer el stream2 para obtener el texto completo y guardarlo en la DB
       (async () => {
         const reader = stream2.getReader();
         const decoder = new TextDecoder();
-        let fullText = "";
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          fullText += decoder.decode(value, { stream: true });
+          finalResponseText += decoder.decode(value, { stream: true });
         }
-        await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullText });
+        await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: finalResponseText });
       })();
     }
 
@@ -181,7 +167,7 @@ serve(async (req) => {
     }
     
     // Si la respuesta fue del contexto, la guardamos ahora. Si fue del stream, ya se está guardando.
-    if (finalResponseText) { // Se guarda solo si no es un stream
+    if (!strictResponseText.includes(FALLBACK_TRIGGER_PHRASE)) {
         await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: finalResponseText });
     }
 
