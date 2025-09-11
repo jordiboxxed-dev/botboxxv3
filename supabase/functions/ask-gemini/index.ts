@@ -88,10 +88,13 @@ serve(async (req) => {
     }
 
     const metaPrompt = `
-      **ROL Y OBJETIVO:** Eres un asistente de IA experto cuya única función es responder preguntas basándose ESTRICTAMENTE en el contexto proporcionado.
+      **ROL Y OBJETIVO:** Eres un asistente de IA experto. Tu única función es responder preguntas basándote ESTRICTAMENTE en el 'Contexto' y el 'Historial de Conversación'.
+      
       **REGLAS CRÍTICAS:**
-      - **NUNCA uses conocimiento externo.**
-      - **Si la información NO está en el 'Contexto', tu única respuesta permitida es:** "${FALLBACK_TRIGGER_PHRASE}"
+      1.  **NUNCA uses conocimiento externo.** Tu conocimiento se limita a lo que está escrito en el contexto.
+      2.  **Utiliza el Historial de Conversación** para entender preguntas cortas o de seguimiento (ej: '¿y el de 18000?').
+      3.  **Sintetiza información:** Puedes combinar datos de diferentes partes del contexto para construir una respuesta completa.
+      4.  **Si la información NO está en el 'Contexto',** tu única respuesta permitida es: "${FALLBACK_TRIGGER_PHRASE}" No intentes adivinar ni responder de otra manera.
       ---
       **Contexto de la Base de Conocimiento:**
       ${context}
@@ -102,7 +105,7 @@ serve(async (req) => {
 
     const strictHistory = [
       { role: "user", parts: [{ text: metaPrompt }] },
-      { role: "model", parts: [{ text: "Entendido. Mi conocimiento se limita estrictamente al contexto proporcionado." }] },
+      { role: "model", parts: [{ text: "Entendido. Mi conocimiento se limita estrictamente al contexto proporcionado y usaré el historial para entender mejor las preguntas." }] },
       ...((history || []).slice(-6)).map(msg => ({
           role: msg.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: msg.content }]
