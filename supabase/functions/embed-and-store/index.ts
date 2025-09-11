@@ -16,36 +16,64 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// --- Nueva Función de Fragmentación Inteligente ---
-function chunkText(text, chunkSize = 1500, chunkOverlap = 200) {
-  if (!text) return [];
+// --- Nueva Función de Fragmentación Recursiva ---
+// Esta función divide el texto de manera más inteligente, intentando mantener la cohesión del contenido.
+async function recursiveChunkText(text, chunkSize = 1000, chunkOverlap = 150, separators = ["\n\n", "\n", ". ", " ", ""]) {
+  if (text.length <= chunkSize) {
+    return [text];
+  }
 
-  // 1. Dividir el texto en bloques lógicos (párrafos, secciones) usando dobles saltos de línea.
-  const blocks = text.split(/\n\s*\n/).filter(block => block.trim().length > 0);
-  const finalChunks = [];
+  // Intenta dividir con el primer separador de la lista.
+  const currentSeparator = separators[0];
+  const nextSeparators = separators.slice(1);
 
-  for (const block of blocks) {
-    // 2. Si un bloque es más pequeño que el tamaño del fragmento, se considera un fragmento completo.
-    if (block.length <= chunkSize) {
-      finalChunks.push(block);
-    } else {
-      // 3. Si un bloque es demasiado grande, se divide por el método de ventana deslizante.
-      console.log(`Bloque grande detectado (${block.length} caracteres). Aplicando división por tamaño.`);
-      let i = 0;
-      while (i < block.length) {
-        const end = Math.min(i + chunkSize, block.length);
-        finalChunks.push(block.slice(i, end));
-        i += chunkSize - chunkOverlap;
-        if (i + chunkOverlap >= block.length && i < block.length) {
-          finalChunks.push(block.slice(i));
-          break;
+  let chunks = [];
+  if (currentSeparator) {
+    const splits = text.split(currentSeparator);
+    let buffer = "";
+    for (const split of splits) {
+      const newBuffer = buffer + (buffer ? currentSeparator : "") + split;
+      if (newBuffer.length > chunkSize) {
+        // Si el buffer excede el tamaño, lo agregamos como un chunk
+        // y si es muy grande, lo subdividimos recursivamente.
+        if (buffer) {
+          const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
+          chunks.push(...subChunks);
         }
+        buffer = split;
+      } else {
+        buffer = newBuffer;
       }
+    }
+    if (buffer) {
+      const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
+      chunks.push(...subChunks);
+    }
+  } else {
+    // Si no hay más separadores, cortamos por tamaño.
+    for (let i = 0; i < text.length; i += chunkSize - chunkOverlap) {
+      chunks.push(text.slice(i, i + chunkSize));
     }
   }
 
-  return finalChunks.filter(chunk => chunk.trim().length > 10); // Filtra fragmentos muy pequeños
+  // Unir chunks pequeños para optimizar
+  const mergedChunks = [];
+  let currentChunk = "";
+  for (const chunk of chunks) {
+    if ((currentChunk + chunk).length <= chunkSize) {
+      currentChunk += chunk;
+    } else {
+      mergedChunks.push(currentChunk);
+      currentChunk = chunk;
+    }
+  }
+  if (currentChunk) {
+    mergedChunks.push(currentChunk);
+  }
+
+  return mergedChunks.filter(chunk => chunk.trim().length > 10);
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -66,8 +94,8 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    // 1. Dividir el texto en fragmentos usando la nueva lógica inteligente
-    const chunks = chunkText(textContent);
+    // 1. Dividir el texto en fragmentos usando la nueva lógica recursiva
+    const chunks = await recursiveChunkText(textContent);
 
     if (chunks.length === 0) {
       return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
@@ -76,7 +104,7 @@ serve(async (req) => {
       });
     }
 
-    // 2. Generar embeddings para cada fragmento en lotes para no exceder el límite de la API
+    // 2. Generar embeddings para cada fragmento en lotes
     const BATCH_SIZE = 100;
     const allEmbeddings = [];
 

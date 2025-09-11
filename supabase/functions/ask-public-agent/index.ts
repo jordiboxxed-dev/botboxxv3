@@ -88,8 +88,8 @@ serve(async (req) => {
         const promptEmbedding = await embeddingModel.embedContent(prompt);
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
-            match_threshold: 0.65,
-            match_count: 5,
+            match_threshold: 0.5, // Umbral más flexible
+            match_count: 10,      // Más contexto
             source_ids: sourceIds
         });
         if (matchError) throw matchError;
@@ -98,31 +98,37 @@ serve(async (req) => {
         }
     }
 
+    const metaPrompt = `
+      **ROL Y OBJETIVO:** Eres un asistente de IA experto cuya única función es responder preguntas basándose ESTRICTAMENTE en el contexto proporcionado. Tu conocimiento del mundo está limitado a la información que se te entrega en cada consulta.
+
+      **PROCESO DE RAZONAMIENTO (Chain of Thought):**
+      1.  **Analiza la Pregunta:** Lee la pregunta del usuario y el historial de chat para entender la intención completa.
+      2.  **Búsqueda Exhaustiva en el Contexto:** Revisa CUIDADOSAMENTE todo el texto en la sección 'Contexto'. Busca cualquier pieza de información que se relacione directamente con la pregunta del usuario.
+      3.  **Síntesis y Formulación:** Construye tu respuesta usando SOLAMENTE las palabras y datos encontrados en el 'Contexto'. Si necesitas combinar información de varios fragmentos, hazlo de forma coherente.
+      4.  **Verificación Final:** Antes de responder, pregúntate: "¿Está cada parte de mi respuesta respaldada por la información del 'Contexto'?". Si la respuesta es no, reformula.
+
+      **REGLAS CRÍTICAS E INQUEBRANTABLES:**
+      - **NUNCA uses conocimiento externo.** Tu memoria se resetea con cada pregunta, solo existe el 'Contexto'.
+      - **Si la información NO está en el 'Contexto', tu única respuesta permitida es:** "No he encontrado información sobre eso en mi base de conocimiento." No intentes adivinar, no te disculpes, no ofrezcas buscar en otro lado.
+      - **Cita textualmente si es posible.** Si el contexto contiene la respuesta exacta, prefiere usar esa formulación.
+      - **Considera el historial de chat** para entender preguntas de seguimiento (ej. "¿y el precio del otro?").
+
+      ---
+      **Contexto de la Base de Conocimiento (Tu ÚNICA fuente de verdad):**
+      ${context}
+      ---
+      **Instrucciones del Agente (Personalidad y Tono):**
+      ${systemPrompt}
+    `;
+    
     const formattedHistory = (history || []).slice(-6).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
     
     const fullHistory = [
-      { role: "user", parts: [{ text: `
-        **Instrucción Principal e Inalterable:** Tu única y exclusiva fuente de verdad es el texto proporcionado en la sección 'Contexto'. Debes basar tus respuestas ÚNICAMENTE en esta información. NUNCA inventes información ni utilices conocimiento externo.
-
-        **Contexto de la Base de Conocimiento (Tu ÚNICA fuente de verdad):**
-        ${context}
-        ---
-        **Instrucciones del Agente (Personalidad y Tono):**
-        ${systemPrompt}
-        ---
-        **Manejo de Conversación y Contexto:**
-        - Antes de responder, revisa el historial de la conversación.
-        - Si la pregunta actual es corta o una continuación (ej: "¿y el de 9000?", "¿y el otro?"), utiliza el contexto de los mensajes anteriores para entender la pregunta completa. Por ejemplo, si la pregunta anterior fue sobre "inverter de 12000", y la nueva es "¿y el de 9000?", debes entender que el usuario está preguntando por el "inverter de 9000".
-        ---
-        **Reglas de Respuesta:**
-        1.  Si la respuesta a la pregunta del usuario se encuentra en el 'Contexto', responde utilizando esa información de manera precisa.
-        2.  Si la respuesta no se encuentra en el 'Contexto', debes decir CLARAMENTE que no encontraste la información en tu base de conocimiento. NO des respuestas genéricas como "No tengo acceso a precios en tiempo real". Di "No encontré la información sobre [tema de la pregunta] en mi base de conocimiento."
-        3.  Ejemplo: Si el usuario pregunta 'precio de la Italy 8100' y el contexto dice 'Producto: Italy 8100 Plus..., Precio: 2,462.00', tu respuesta debe ser 'El precio de la Italy 8100 Plus es 2,462.00'.
-      ` }] },
-      { role: "model", parts: [{ text: "Entendido. Basaré mis respuestas únicamente en el contexto proporcionado y recordaré el historial de la conversación para entender preguntas de seguimiento." }] },
+      { role: "user", parts: [{ text: metaPrompt }] },
+      { role: "model", parts: [{ text: "Entendido. Mi conocimiento se limita estrictamente al contexto proporcionado. Seguiré el proceso de razonamiento y las reglas críticas al pie de la letra." }] },
       ...formattedHistory,
       { role: "user", parts: [{ text: prompt }] }
     ];
