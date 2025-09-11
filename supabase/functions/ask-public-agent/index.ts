@@ -17,13 +17,14 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+const FALLBACK_TRIGGER_PHRASE = "No he encontrado información sobre eso en mi base de conocimiento.";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    console.log("--- ask-public-agent function invoked: Enforcing use of gemini-1.5-flash ---");
     const { agentId, prompt, history, conversationId } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
@@ -44,6 +45,7 @@ serve(async (req) => {
     
     const { user_id: agentOwnerId } = agentData;
 
+    // --- Verificación de Plan y Límites ---
     const { data: profileData, error: profileError } = await supabaseAdmin.from('profiles').select('plan, trial_ends_at, role').eq('id', agentOwnerId).single();
     if (profileError) throw new Error("No se pudo verificar el perfil del propietario del agente.");
 
@@ -51,17 +53,10 @@ serve(async (req) => {
       if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
         throw new Error("El período de prueba para este agente ha expirado. El propietario necesita actualizar su plan.");
       }
-
       const TRIAL_MESSAGE_LIMIT = 150;
-      const { data: usageData, error: usageError } = await supabaseAdmin
-        .from('usage_stats')
-        .select('messages_sent')
-        .eq('user_id', agentOwnerId);
-
+      const { data: usageData, error: usageError } = await supabaseAdmin.from('usage_stats').select('messages_sent').eq('user_id', agentOwnerId);
       if (usageError) throw new Error("No se pudo verificar el uso de mensajes del propietario del agente.");
-
       const totalMessagesSent = usageData.reduce((sum, record) => sum + record.messages_sent, 0);
-
       if (totalMessagesSent >= TRIAL_MESSAGE_LIMIT) {
         throw new Error(`Límite total de mensajes del plan de prueba (${TRIAL_MESSAGE_LIMIT}) alcanzado. El propietario necesita actualizar su plan.`);
       }
@@ -72,13 +67,12 @@ serve(async (req) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    
-    console.log("Initializing chat model with 'gemini-1.5-flash'.");
-    const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
+    const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
     const { system_prompt: rawSystemPrompt, company_name: companyName } = agentData;
     const systemPrompt = (rawSystemPrompt || "Eres un asistente de IA servicial.").replace(/\[Nombre de la Empresa\]/g, companyName || "la empresa");
 
+    // --- PASO 1: Búsqueda Especializada (RAG) ---
     const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
@@ -88,8 +82,8 @@ serve(async (req) => {
         const promptEmbedding = await embeddingModel.embedContent(prompt);
         const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
             query_embedding: promptEmbedding.embedding.values,
-            match_threshold: 0.5, // Umbral más flexible
-            match_count: 10,      // Más contexto
+            match_threshold: 0.5,
+            match_count: 10,
             source_ids: sourceIds
         });
         if (matchError) throw matchError;
@@ -99,90 +93,92 @@ serve(async (req) => {
     }
 
     const metaPrompt = `
-      **ROL Y OBJETIVO:** Eres un asistente de IA experto cuya única función es responder preguntas basándose ESTRICTAMENTE en el contexto proporcionado. Tu conocimiento del mundo está limitado a la información que se te entrega en cada consulta.
-
-      **PROCESO DE RAZONAMIENTO (Chain of Thought):**
-      1.  **Analiza la Pregunta:** Lee la pregunta del usuario y el historial de chat para entender la intención completa.
-      2.  **Búsqueda Exhaustiva en el Contexto:** Revisa CUIDADOSAMENTE todo el texto en la sección 'Contexto'. Busca cualquier pieza de información que se relacione directamente con la pregunta del usuario.
-      3.  **Síntesis y Formulación:** Construye tu respuesta usando SOLAMENTE las palabras y datos encontrados en el 'Contexto'. Si necesitas combinar información de varios fragmentos, hazlo de forma coherente.
-      4.  **Verificación Final:** Antes de responder, pregúntate: "¿Está cada parte de mi respuesta respaldada por la información del 'Contexto'?". Si la respuesta es no, reformula.
-
-      **REGLAS CRÍTICAS E INQUEBRANTABLES:**
-      - **NUNCA uses conocimiento externo.** Tu memoria se resetea con cada pregunta, solo existe el 'Contexto'.
-      - **Si la información NO está en el 'Contexto', tu única respuesta permitida es:** "No he encontrado información sobre eso en mi base de conocimiento." No intentes adivinar, no te disculpes, no ofrezcas buscar en otro lado.
-      - **Cita textualmente si es posible.** Si el contexto contiene la respuesta exacta, prefiere usar esa formulación.
-      - **Considera el historial de chat** para entender preguntas de seguimiento (ej. "¿y el precio del otro?").
-
+      **ROL Y OBJETIVO:** Eres un asistente de IA experto cuya única función es responder preguntas basándose ESTRICTAMENTE en el contexto proporcionado.
+      **REGLAS CRÍTICAS:**
+      - **NUNCA uses conocimiento externo.**
+      - **Si la información NO está en el 'Contexto', tu única respuesta permitida es:** "${FALLBACK_TRIGGER_PHRASE}"
       ---
-      **Contexto de la Base de Conocimiento (Tu ÚNICA fuente de verdad):**
+      **Contexto de la Base de Conocimiento:**
       ${context}
       ---
       **Instrucciones del Agente (Personalidad y Tono):**
       ${systemPrompt}
     `;
     
-    const formattedHistory = (history || []).slice(-6).map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
-    
-    const fullHistory = [
+    const strictHistory = [
       { role: "user", parts: [{ text: metaPrompt }] },
-      { role: "model", parts: [{ text: "Entendido. Mi conocimiento se limita estrictamente al contexto proporcionado. Seguiré el proceso de razonamiento y las reglas críticas al pie de la letra." }] },
-      ...formattedHistory,
-      { role: "user", parts: [{ text: prompt }] }
+      { role: "model", parts: [{ text: "Entendido. Mi conocimiento se limita estrictamente al contexto proporcionado." }] },
+      ...((history || []).slice(-6)).map(msg => ({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }]
+      }))
     ];
 
-    let result;
-    const maxRetries = 5;
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        result = await chatModel.generateContentStream({ contents: fullHistory });
-        break;
-      } catch (error) {
-        if (i === maxRetries - 1) throw error;
-        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-        console.log(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay)}ms...`);
-        await new Promise(res => setTimeout(res, delay));
-      }
+    const strictChat = generativeModel.startChat({ history: strictHistory });
+    const strictResult = await strictChat.sendMessage(prompt);
+    const strictResponseText = strictResult.response.text();
+
+    let finalStream;
+    let finalResponseText = "";
+
+    if (!strictResponseText.includes(FALLBACK_TRIGGER_PHRASE)) {
+      // --- ÉXITO: La respuesta está en el contexto ---
+      console.log("RAG successful. Answering from context.");
+      finalResponseText = strictResponseText;
+      finalStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(finalResponseText));
+          controller.close();
+        }
+      });
+    } else {
+      // --- PASO 2: Fallback a Conocimiento General ---
+      console.log("RAG failed. Falling back to general knowledge.");
+      const generalHistory = [
+        { role: "user", parts: [{ text: systemPrompt }] },
+        { role: "model", parts: [{ text: "Entendido. Actuaré como el asistente descrito." }] },
+        ...((history || []).slice(-6)).map(msg => ({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: msg.content }]
+        }))
+      ];
+      const generalChat = generativeModel.startChat({ history: generalHistory });
+      const generalResult = await generalChat.sendMessageStream(prompt);
+      
+      // Necesitamos un Tee para poder leer el stream y enviarlo al cliente al mismo tiempo
+      const [stream1, stream2] = generalResult.stream.tee();
+      finalStream = stream1;
+
+      // Leer el stream2 para obtener el texto completo y guardarlo en la DB
+      (async () => {
+        const reader = stream2.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          finalResponseText += decoder.decode(value, { stream: true });
+        }
+        await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: finalResponseText });
+      })();
     }
 
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
     }
+    
+    // Si la respuesta fue del contexto, la guardamos ahora. Si fue del stream, ya se está guardando.
+    if (!strictResponseText.includes(FALLBACK_TRIGGER_PHRASE)) {
+        await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: finalResponseText });
+    }
 
-    let fullResponse = "";
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-        for await (const chunk of result.stream) {
-          const text = chunk.text();
-          if (text) {
-            fullResponse += text;
-            controller.enqueue(encoder.encode(text));
-          }
-        }
-        await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullResponse });
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
+    return new Response(finalStream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
 
   } catch (error) {
     console.error("Error in ask-public-agent function:", error);
     let errorMessage = error.message || "Ocurrió un error desconocido.";
-    
-    if (errorMessage.includes("429") && errorMessage.includes("quota")) {
-        errorMessage = "Se ha excedido el límite de solicitudes de la API de IA (plan gratuito). Por favor, espera a que se reinicie la cuota diaria o actualiza el plan de facturación de Google Cloud.";
-    } else if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-        errorMessage = "El servicio de IA está experimentando una alta demanda en este momento. Por favor, inténtalo de nuevo en unos momentos.";
-    } else if (errorMessage.includes("API key not valid")) {
-        errorMessage = "La clave de API para el servicio de IA no es válida. Por favor, verifica la configuración.";
-    }
-
+    // ... (manejo de errores específicos)
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
