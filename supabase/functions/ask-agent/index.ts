@@ -241,6 +241,7 @@ ${prompt}
         const webhookPayload = {
           agentId: agentId,
           userId: user.id,
+          userPrompt: prompt,
           eventDetails: parsedResponse.params
         };
 

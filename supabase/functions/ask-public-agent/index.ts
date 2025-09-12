@@ -239,6 +239,7 @@ ${prompt}
           agentId: agentId,
           agentOwnerId: agentOwnerId,
           conversationId: conversationId,
+          userPrompt: prompt,
           eventDetails: parsedResponse.params
         };
 
