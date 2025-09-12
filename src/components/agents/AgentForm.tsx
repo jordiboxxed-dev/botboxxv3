@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { showError } from "@/utils/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 import { Agent } from "@/components/layout/AppLayout";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -36,6 +36,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [widgetPosition, setWidgetPosition] = useState("right");
   const [status, setStatus] = useState("active");
   const [model, setModel] = useState("mistralai/mistral-7b-instruct");
+  const [webhookUrl, setWebhookUrl] = useState("");
   
   useEffect(() => {
     if (initialData) {
@@ -48,13 +49,18 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
       setModel(initialData.model || "mistralai/mistral-7b-instruct");
+      setWebhookUrl(initialData.webhook_url || "");
     }
   }, [initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !systemPrompt) {
-      showError("El nombre del agente y las instrucciones base son obligatorios.");
+    if (!name) {
+      showError("El nombre del agente es obligatorio.");
+      return;
+    }
+    if (!systemPrompt && !webhookUrl) {
+      showError("Debes proporcionar Instrucciones Base o una URL de Webhook.");
       return;
     }
     await onSubmit({ 
@@ -66,7 +72,8 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       widget_welcome_message: widgetWelcomeMessage,
       widget_position: widgetPosition,
       status,
-      model
+      model,
+      webhook_url: webhookUrl,
     });
   };
 
@@ -92,6 +99,9 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
           <div>
             <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
             <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 text-white mt-2 min-h-[120px]" />
+            <p className="text-xs text-gray-400 mt-2">
+              Define el comportamiento del agente. Se ignora si se usa un Webhook.
+            </p>
           </div>
           <div>
             <Label htmlFor="model" className="text-white">Modelo de IA</Label>
@@ -104,9 +114,21 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-400 mt-2">
-              Elige el motor de inteligencia artificial para tu agente. Mistral 7B es ideal para la mayoría de los casos de uso.
+              Elige el motor de IA. Se ignora si se usa un Webhook.
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="pt-6 border-t border-white/10">
+        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Integración con Webhook</h3>
+        <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para una lógica personalizada.</p>
+        <div>
+          <Label htmlFor="webhookUrl" className="text-white">Webhook URL</Label>
+          <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-webhook.com/endpoint" className="bg-black/20 border-white/20 text-white mt-2" />
+          <p className="text-xs text-gray-400 mt-2">
+            Si completas este campo, el agente enviará los datos a esta URL en lugar de usar el modelo de IA interno.
+          </p>
         </div>
       </div>
       
