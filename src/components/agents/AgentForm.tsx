@@ -37,7 +37,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [widgetPosition, setWidgetPosition] = useState("right");
   const [status, setStatus] = useState("active");
   const [model, setModel] = useState("mistralai/mistral-7b-instruct");
-  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("https://n8n.srv945931.hstgr.cloud/webhook/agente-ventas");
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +66,9 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
       setModel(initialData.model || "mistralai/mistral-7b-instruct");
-      setWebhookUrl(initialData.webhook_url || "");
+      if (initialData.webhook_url !== null && initialData.webhook_url !== undefined) {
+        setWebhookUrl(initialData.webhook_url);
+      }
     }
   }, [initialData]);
 
