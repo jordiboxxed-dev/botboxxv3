@@ -143,7 +143,7 @@ const AdminDashboard = () => {
                 <CardTitle>Usuarios Registrados</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-scroll custom-scrollbar">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-white/20 hover:bg-transparent">
@@ -190,7 +190,7 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-scroll custom-scrollbar">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-white/20 hover:bg-transparent">
