@@ -116,6 +116,10 @@ serve(async (req) => {
       throw new Error("Este agente no está activo y no puede recibir mensajes.");
     }
     
+    if (!agentData.webhook_url) {
+      throw new Error("Este agente no tiene un Webhook de Acciones configurado y no puede procesar mensajes públicos.");
+    }
+
     const { user_id: agentOwnerId } = agentData;
 
     // --- Verificación de Plan y Límites del Propietario ---
@@ -166,126 +170,65 @@ serve(async (req) => {
     // --- Obtener Contexto de Herramientas (Google Calendar) ---
     const calendarContext = await getCalendarEvents(agentOwnerId, supabaseAdmin);
 
-    // --- Lógica de IA (OpenRouter) ---
-    const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no está configurada.");
-
-    const personalityPrompt = agentData.system_prompt || "Eres un asistente de IA servicial.";
-    const companyName = agentData.company_name || "la empresa";
-    const finalSystemPrompt = `
-Eres un agente de inteligencia artificial especializado. Tu comportamiento está definido por las siguientes reglas:
-1.  **Identidad y Personalidad:**
-    *   Tu nombre es un agente de ${companyName}.
-    *   Adopta la siguiente personalidad: ${personalityPrompt}
-2.  **Proceso de Respuesta (Reglas Obligatorias):**
-    *   **PASO 1:** Analiza la PREGUNTA DEL USUARIO. Determina si la intención principal es **agendar, reservar o crear una cita/evento** o si es **solicitar información**.
-    *   **PASO 2 (Acción de Agendar):** **SOLO Y EXCLUSIVAMENTE SI** la intención es agendar, reservar o crear una cita, tu respuesta debe ser un objeto JSON con el formato: {"tool": "create_calendar_event", "params": {"title": "Cita: [Nombre del Servicio] para [Nombre del Cliente]", "startTime": "YYYY-MM-DDTHH:MM:SS", "endTime": "YYYY-MM-DDTHH:MM:SS", "attendees": ["email@example.com"]}}. No incluyas NINGÚN otro texto. Debes deducir los detalles del evento del historial de la conversación.
-    *   **PASO 3 (Respuesta Informativa):** **PARA CUALQUIER OTRA PREGUNTA** (consultas de precios, características, información general, etc.), formula una respuesta conversacional basándote en la "BASE DE CONOCIMIENTO" y la "INFORMACIÓN DE HERRAMIENTAS". Si no encuentras nada relevante, tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema."
-    *   **REGLA CRÍTICA:** Nunca respondas con el JSON de la herramienta si el usuario solo está pidiendo información. Por ejemplo, si preguntan "¿cuál es el precio?", la respuesta debe ser el precio, no el JSON.
-
-### INFORMACIÓN DE HERRAMIENTAS (DATOS EN TIEMPO REAL) ###
----
-[Google Calendar]
-${calendarContext}
----
-
-### BASE DE CONOCIMIENTO (DATOS ESTÁTICOS) ###
----
-${knowledgeContext}
----
-
-### HISTORIAL DE LA CONVERSACIÓN ###
-${(history || []).slice(-4).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-### PREGUNTA DEL USUARIO ###
-${prompt}
-### TU RESPUESTA (JSON para agendar o texto conversacional) ###
-`;
-    const messages = [{ role: "system", content: finalSystemPrompt }];
-
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openRouterApiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://botboxx-demov2.vercel.app",
-        "X-Title": "BotBoxx"
+    // --- LÓGICA PRINCIPAL: Enviar todo al Webhook de n8n ---
+    const webhookPayload = {
+      agent: {
+        id: agentId,
+        system_prompt: agentData.system_prompt,
+        company_name: agentData.company_name,
+        model: agentData.model,
       },
-      body: JSON.stringify({
-        model: agentData.model || 'mistralai/mistral-7b-instruct',
-        messages: messages,
-        stream: false, // No usamos stream para poder procesar la respuesta completa
-        temperature: 0.1,
-      })
+      user: {
+        id: null,
+        conversationId: conversationId,
+      },
+      prompt: prompt,
+      history: history || [],
+      context: {
+        knowledge: knowledgeContext,
+        calendar: calendarContext,
+      }
+    };
+
+    const webhookResponse = await fetch(agentData.webhook_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(webhookPayload)
     });
 
-    if (!openRouterResponse.ok) {
-      const errorBody = await openRouterResponse.json();
-      throw new Error(`Error de OpenRouter: ${errorBody.error.message}`);
-    }
-    
-    const responseJson = await openRouterResponse.json();
-    const responseText = responseJson.choices[0].message.content;
-    let fullResponseText = responseText; // Asignamos el texto completo para guardarlo después
-    let finalResponseStream;
-
-    try {
-      const parsedResponse = JSON.parse(responseText);
-      if (parsedResponse.tool === 'create_calendar_event') {
-        if (!agentData.webhook_url) {
-          throw new Error("El agente intentó usar una herramienta, pero no hay una URL de Webhook configurada.");
-        }
-        
-        // Crear un payload más completo para el webhook
-        const webhookPayload = {
-          agentId: agentId,
-          agentOwnerId: agentOwnerId,
-          conversationId: conversationId,
-          userPrompt: prompt,
-          eventDetails: parsedResponse.params
-        };
-
-        // Llamar al webhook de n8n/Zapier con el nuevo payload
-        const webhookResponse = await fetch(agentData.webhook_url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(webhookPayload)
-        });
-
-        if (!webhookResponse.ok) {
-          throw new Error(`El webhook de acción devolvió un error: ${webhookResponse.statusText}`);
-        }
-
-        fullResponseText = "¡Listo! He agendado el evento en el calendario.";
-        finalResponseStream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(fullResponseText));
-            controller.close();
-          }
-        });
-
-      } else {
-        // Es un JSON pero no una herramienta que conocemos, lo tratamos como texto normal
-        throw new Error("Respuesta JSON no reconocida como herramienta.");
-      }
-    } catch (e) {
-      // No es un JSON válido o no es una herramienta, así que es una respuesta de texto normal.
-      // La convertimos en un stream para que el cliente la reciba igual.
-      finalResponseStream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(responseText));
-          controller.close();
-        }
-      });
+    if (!webhookResponse.ok) {
+      const errorText = await webhookResponse.text();
+      throw new Error(`El webhook de n8n devolvió un error (${webhookResponse.status}): ${errorText}`);
     }
 
-    // --- Guardar respuesta y devolver stream ---
-    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullResponseText });
-
+    // --- Incrementar contador de mensajes del propietario ---
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
     }
     
-    return new Response(finalResponseStream, {
+    // --- Guardar respuesta y devolver stream ---
+    const responseBody = webhookResponse.body;
+    if (!responseBody) {
+        throw new Error("El webhook no devolvió un cuerpo de respuesta.");
+    }
+
+    // Duplicamos el stream para poder leerlo y enviarlo al cliente
+    const [stream1, stream2] = responseBody.tee();
+
+    // Leemos el stream1 para obtener el texto completo y guardarlo en la base de datos
+    const reader = stream1.getReader();
+    const decoder = new TextDecoder();
+    let fullResponseText = "";
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullResponseText += decoder.decode(value, { stream: true });
+    }
+    
+    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullResponseText });
+
+    // Devolvemos el stream2 al cliente para que lo vea en tiempo real
+    return new Response(stream2, {
       headers: { ...corsHeaders, "Content-Type": "text/plain" },
     });
 
