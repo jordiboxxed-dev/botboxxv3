@@ -12,25 +12,27 @@ export const GoogleCalendarTool = () => {
 
   const checkConnection = async () => {
     setIsLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsConnected(false);
+        setIsLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("user_credentials")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("service", "google_calendar")
-      .maybeSingle(); // maybeSingle es más robusto si no hay resultados
+      const { data, error } = await supabase.functions.invoke("verify-google-connection");
 
-    if (data && !error) {
-      setIsConnected(true);
-    } else {
+      if (error) throw error;
+      
+      setIsConnected(data.isConnected);
+
+    } catch (err) {
+      console.error("Error verifying Google connection:", err);
+      showError("No se pudo verificar la conexión con Google Calendar.");
       setIsConnected(false);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -43,7 +45,6 @@ export const GoogleCalendarTool = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No estás autenticado.");
 
-      console.log("Fetching auth URL from backend...");
       const response = await fetch(`${SUPABASE_URL}/functions/v1/google-auth-start`, {
         method: 'GET',
         headers: {
@@ -54,7 +55,6 @@ export const GoogleCalendarTool = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Backend error response:", errorData);
         throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
       }
 
@@ -63,7 +63,6 @@ export const GoogleCalendarTool = () => {
         throw new Error("La respuesta del servidor no contenía una URL de autenticación.");
       }
 
-      console.log("Redirecting to Google Auth URL...");
       window.location.href = authUrl;
 
     } catch (error) {
@@ -101,21 +100,26 @@ export const GoogleCalendarTool = () => {
   }
 
   return (
-    <div className="bg-black/30 p-4 rounded-lg border border-white/10 flex items-center justify-between">
+    <div className="bg-black/30 p-4 rounded-lg border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div className="flex items-center gap-4">
-        <div className="p-2 bg-white/10 rounded-md">
+        <div className="p-2 bg-white/10 rounded-md flex-shrink-0">
           <Calendar className="w-6 h-6 text-red-400" />
         </div>
         <div>
           <h4 className="font-semibold text-white">Google Calendar</h4>
-          <p className="text-sm text-gray-400">Permite al agente leer tus eventos próximos.</p>
+          <p className="text-sm text-gray-400">
+            {isConnected 
+              ? "Permite al agente leer tus eventos y crear nuevos."
+              : "Conecta tu calendario para que el agente pueda agendar reuniones."
+            }
+          </p>
         </div>
       </div>
-      <div>
+      <div className="flex-shrink-0 self-end sm:self-center">
         {isConnected ? (
           <div className="flex items-center gap-2">
             <span className="text-sm text-green-400 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Conectado</span>
-            <Button variant="destructive" size="sm" onClick={handleDisconnect} disabled={isProcessing}>
+            <Button variant="destructive" size="sm" onClick={handleDisconnect} disabled={isProcessing} title="Desconectar Google Calendar">
               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
             </Button>
           </div>
