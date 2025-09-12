@@ -9,74 +9,71 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// --- Helper para obtener/refrescar tokens de Google ---
+async function getGoogleAuthTokens(userId, supabaseAdmin) {
+  const { data: creds, error: credsError } = await supabaseAdmin
+    .from("user_credentials")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .eq("service", "google_calendar")
+    .single();
+
+  if (credsError || !creds) {
+    return { error: "El usuario no ha conectado su Google Calendar." };
+  }
+
+  let { access_token, refresh_token, expires_at } = creds;
+
+  if (new Date(expires_at) < new Date()) {
+    if (!refresh_token) {
+      await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
+      return { error: "La conexión con Google Calendar ha expirado. Por favor, vuelve a conectar tu calendario." };
+    }
+
+    const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
+    const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+    
+    const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: googleClientId,
+        client_secret: googleClientSecret,
+        refresh_token: refresh_token,
+        grant_type: "refresh_token",
+      }),
+    });
+
+    const newTokens = await refreshResponse.json();
+    if (newTokens.error) {
+      if (newTokens.error === 'invalid_grant') {
+        await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
+        return { error: "La autorización de Google Calendar fue revocada. Por favor, vuelve a conectar tu calendario." };
+      }
+      return { error: "Error al refrescar la conexión con Google Calendar." };
+    }
+
+    access_token = newTokens.access_token;
+    const new_expires_at = new Date(Date.now() + newTokens.expires_in * 1000).toISOString();
+
+    await supabaseAdmin
+      .from("user_credentials")
+      .update({ access_token: access_token, expires_at: new_expires_at })
+      .eq("user_id", userId)
+      .eq("service", "google_calendar");
+  }
+  
+  return { access_token };
+}
+
 // --- Helper para Google Calendar ---
 async function getCalendarEvents(userId, supabaseAdmin) {
   try {
-    const { data: creds, error: credsError } = await supabaseAdmin
-      .from("user_credentials")
-      .select("access_token, refresh_token, expires_at")
-      .eq("user_id", userId)
-      .eq("service", "google_calendar")
-      .single();
+    const { access_token, error } = await getGoogleAuthTokens(userId, supabaseAdmin);
+    if (error) return { error, events: [] };
 
-    if (credsError || !creds) {
-      return {
-        summary: "El usuario no ha conectado su Google Calendar.",
-        events: []
-      };
-    }
-
-    let { access_token, refresh_token, expires_at } = creds;
-
-    // Refresh token si es necesario
-    if (new Date(expires_at) < new Date()) {
-      if (!refresh_token) {
-        console.error(`Refresh token missing for user ${userId}. Deleting credentials to force re-auth.`);
-        await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
-        return { error: "La conexión con Google Calendar ha expirado. Por favor, vuelve a conectar tu calendario desde la pestaña 'Herramientas'.", events: [] };
-      }
-
-      const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
-      const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
-      
-      const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_id: googleClientId,
-          client_secret: googleClientSecret,
-          refresh_token: refresh_token,
-          grant_type: "refresh_token",
-        }),
-      });
-
-      const newTokens = await refreshResponse.json();
-      if (newTokens.error) {
-        console.error("Error refreshing token:", newTokens.error_description);
-        if (newTokens.error === 'invalid_grant') {
-          console.error(`Invalid grant for user ${userId}. Deleting credentials.`);
-          await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
-          return { error: "La autorización de Google Calendar fue revocada. Por favor, vuelve a conectar tu calendario desde la pestaña 'Herramientas'.", events: [] };
-        }
-        return {
-          error: "Error al refrescar la conexión con Google Calendar.",
-          events: []
-        };
-      }
-
-      access_token = newTokens.access_token;
-      const new_expires_at = new Date(Date.now() + newTokens.expires_in * 1000).toISOString();
-
-      await supabaseAdmin
-        .from("user_credentials")
-        .update({ access_token: access_token, expires_at: new_expires_at })
-        .eq("user_id", userId)
-        .eq("service", "google_calendar");
-    }
-
-    // Fetch events
     const timeMin = new Date().toISOString();
-    const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Próximos 7 días
+    const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     
     const calendarApiUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
     calendarApiUrl.searchParams.set("timeMin", timeMin);
@@ -91,19 +88,12 @@ async function getCalendarEvents(userId, supabaseAdmin) {
 
     if (!eventsResponse.ok) {
       const errorData = await eventsResponse.json();
-      console.error("Google Calendar API error:", errorData);
-      return {
-        error: `Error al obtener eventos del calendario: ${errorData.error.message}`,
-        events: []
-      };
+      return { error: `Error al obtener eventos: ${errorData.error.message}`, events: [] };
     }
 
     const eventsData = await eventsResponse.json();
     if (!eventsData.items || eventsData.items.length === 0) {
-      return {
-        summary: "No hay eventos próximos en el calendario para los siguientes 7 días.",
-        events: []
-      };
+      return { summary: "No hay eventos próximos en el calendario para los siguientes 7 días.", events: [] };
     }
 
     const events = eventsData.items.map(event => ({
@@ -112,24 +102,62 @@ async function getCalendarEvents(userId, supabaseAdmin) {
       endTime: event.end.dateTime || event.end.date,
     }));
 
-    return {
-      summary: `Hay ${events.length} evento(s) en el calendario para los próximos 7 días.`,
-      events: events
-    };
-
+    return { summary: `Hay ${events.length} evento(s) en el calendario.`, events: events };
   } catch (error) {
     console.error("Error in getCalendarEvents:", error);
-    return {
-      error: "Ocurrió un error inesperado al intentar acceder a Google Calendar.",
-      events: []
-    };
+    return { error: "Error inesperado al acceder a Google Calendar.", events: [] };
   }
 }
 
+// --- Helper para crear eventos en Google Calendar ---
+async function createCalendarEvent(userId, params, supabaseAdmin) {
+  try {
+    const { access_token, error } = await getGoogleAuthTokens(userId, supabaseAdmin);
+    if (error) return { success: false, message: `Error de autenticación: ${error}` };
+
+    const startTime = new Date(params.startTime);
+    const endTime = new Date(startTime.getTime() + params.durationMinutes * 60000);
+
+    const event = {
+      summary: params.title,
+      start: {
+        dateTime: startTime.toISOString(),
+        timeZone: 'America/Argentina/Buenos_Aires',
+      },
+      end: {
+        dateTime: endTime.toISOString(),
+        timeZone: 'America/Argentina/Buenos_Aires',
+      },
+      attendees: params.attendees.map(email => ({ email })),
+      reminders: {
+        useDefault: true,
+      },
+    };
+
+    const createResponse = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    });
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json();
+      return { success: false, message: `Error al agendar en Google Calendar: ${errorData.error.message}` };
+    }
+
+    return { success: true, message: `¡Perfecto! He agendado la reunión "${params.title}". Se ha enviado una invitación a los participantes.` };
+  } catch (error) {
+    console.error("Error in createCalendarEvent:", error);
+    return { success: false, message: "Error inesperado al crear el evento en Google Calendar." };
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -152,7 +180,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // --- Verificación de Plan y Límites ---
     const { data: profileData, error: profileError } = await supabaseAdmin.from('profiles').select('plan, trial_ends_at, role').eq('id', user.id).single();
     if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
 
@@ -165,21 +192,18 @@ serve(async (req) => {
       if (usageError) throw new Error("No se pudo verificar el uso de mensajes.");
       const totalMessagesSent = usageData.reduce((sum, record) => sum + record.messages_sent, 0);
       if (totalMessagesSent >= TRIAL_MESSAGE_LIMIT) {
-        throw new Error(`Has alcanzado el límite total de ${TRIAL_MESSAGE_LIMIT} mensajes de tu período de prueba. Por favor, actualiza tu plan.`);
+        throw new Error(`Has alcanzado el límite total de ${TRIAL_MESSAGE_LIMIT} mensajes de tu período de prueba.`);
       }
     }
 
-    // --- Obtener datos del Agente ---
     const { data: agentData, error: agentError } = await supabaseAdmin.from("agents").select("system_prompt, model, company_name, webhook_url").eq("id", agentId).single();
     if (agentError) throw new Error("No se pudo encontrar el agente.");
-    
     if (!agentData.webhook_url) {
-      throw new Error("Este agente no tiene un Webhook de Acciones configurado. Por favor, edita el agente y añade una URL de webhook para que pueda procesar mensajes.");
+      throw new Error("Este agente no tiene un Webhook de Acciones configurado.");
     }
 
-    // --- Obtener Contexto de la Base de Conocimiento ---
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiApiKey) throw new Error("GEMINI_API_KEY no está configurada para embeddings.");
+    if (!geminiApiKey) throw new Error("GEMINI_API_KEY no está configurada.");
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
@@ -202,27 +226,14 @@ serve(async (req) => {
       }
     }
 
-    // --- Obtener Contexto de Herramientas (Google Calendar) ---
     const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
 
-    // --- LÓGICA PRINCIPAL: Enviar todo al Webhook de n8n ---
     const webhookPayload = {
-      agent: {
-        id: agentId,
-        system_prompt: agentData.system_prompt,
-        company_name: agentData.company_name,
-        model: agentData.model,
-      },
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+      agent: { id: agentId, system_prompt: agentData.system_prompt, company_name: agentData.company_name, model: agentData.model },
+      user: { id: user.id, email: user.email },
       prompt: prompt,
       history: history || [],
-      context: {
-        knowledge: knowledgeContext,
-        calendar: calendarContext,
-      }
+      context: { knowledge: knowledgeContext, calendar: calendarContext }
     };
 
     const webhookResponse = await fetch(agentData.webhook_url, {
@@ -233,23 +244,31 @@ serve(async (req) => {
 
     if (!webhookResponse.ok) {
       const errorText = await webhookResponse.text();
-      throw new Error(`El webhook de n8n devolvió un error (${webhookResponse.status}): ${errorText}`);
+      throw new Error(`El webhook devolvió un error (${webhookResponse.status}): ${errorText}`);
     }
 
-    // --- Procesar la respuesta del Webhook ---
     const responseData = await webhookResponse.json();
-    const responseText = responseData.output;
+    let responseText = responseData.output;
 
     if (typeof responseText !== 'string') {
       throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
     }
 
-    // --- Incrementar contador de mensajes ---
+    try {
+      const toolCall = JSON.parse(responseText);
+      if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
+        console.log("Tool call detected: create_calendar_event");
+        const result = await createCalendarEvent(user.id, toolCall.params, supabaseAdmin);
+        responseText = result.message;
+      }
+    } catch (e) {
+      // Not a JSON or not a valid tool call, treat as plain text.
+    }
+
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
     }
 
-    // --- Devolver la respuesta como un stream de texto plano ---
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(new TextEncoder().encode(responseText));
@@ -257,10 +276,7 @@ serve(async (req) => {
       },
     });
 
-    return new Response(stream, {
-      headers: { ...corsHeaders, "Content-Type": "text/plain" },
-    });
-
+    return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/plain" } });
   } catch (error) {
     console.error("Error in ask-agent function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
