@@ -2,6 +2,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
 
 interface ChartData {
   date: string;
@@ -14,6 +16,7 @@ interface AnalyticsChartProps {
 }
 
 export const AnalyticsChart = ({ data }: AnalyticsChartProps) => {
+  const cardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.2)" });
   const formatDate = (tickItem: string) => {
     // Parse the date string as UTC to avoid timezone issues
     const date = new Date(tickItem + 'T00:00:00Z');
@@ -21,7 +24,11 @@ export const AnalyticsChart = ({ data }: AnalyticsChartProps) => {
   };
 
   return (
-    <Card className="bg-black/30 border-white/10 text-white mt-6">
+    <Card
+      ref={cardProps.ref}
+      {...cardProps}
+      className={cn(cardProps.className, "bg-black/30 border-white/10 text-white mt-6")}
+    >
       <CardHeader>
         <CardTitle>Actividad en los últimos 30 días</CardTitle>
       </CardHeader>

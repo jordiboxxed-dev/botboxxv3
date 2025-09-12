@@ -7,6 +7,8 @@ import { motion, Variants } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AnalyticsChart } from "./AnalyticsChart";
+import { useInteractiveCard } from "@/hooks/useInteractiveCard";
+import { cn } from "@/lib/utils";
 
 interface RoiData {
   totalConversations: number;
@@ -17,28 +19,36 @@ interface RoiData {
   activity: { date: string; conversations: number; conversions: number }[];
 }
 
-const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: string | number; icon: React.ReactNode; tooltipText: string }) => (
-  <Card className="bg-black/30 border-white/10 text-white h-full">
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="cursor-help">
-              {icon}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="max-w-xs">{tooltipText}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </CardHeader>
-    <CardContent>
-      <div className="text-3xl font-bold">{value}</div>
-    </CardContent>
-  </Card>
-);
+const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: string | number; icon: React.ReactNode; tooltipText: string }) => {
+  const cardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.2)" });
+
+  return (
+    <Card
+      ref={cardProps.ref}
+      {...cardProps}
+      className={cn(cardProps.className, "bg-black/30 border-white/10 text-white h-full")}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help">
+                {icon}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">{tooltipText}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -56,6 +66,7 @@ const cardVariants: Variants = {
 export const RoiDashboard = () => {
   const [stats, setStats] = useState<RoiData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const keyMetricCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(139, 92, 246, 0.4)" });
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -113,7 +124,14 @@ export const RoiDashboard = () => {
         <h2 className="text-xl font-semibold text-white mb-4">Panel de ROI (Retorno de Inversión)</h2>
         
         <motion.div custom={0} variants={cardVariants} className="mb-6">
-          <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30 p-6">
+          <Card
+            ref={keyMetricCardProps.ref}
+            {...keyMetricCardProps}
+            className={cn(
+              keyMetricCardProps.className,
+              "bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30 p-6"
+            )}
+          >
             <CardHeader className="p-0 mb-4">
               <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
                 <ShieldCheck className="w-6 h-6 text-blue-300" />
