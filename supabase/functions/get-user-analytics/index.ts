@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const { data: conversations, error: convError } = await supabaseAdmin
       .from('public_conversations')
-      .select('id, created_at') // Select created_at
+      .select('id, created_at')
       .eq('user_id', user.id);
     if (convError) throw convError;
 
@@ -80,6 +80,14 @@ serve(async (req) => {
         conversions: conversionActivity[index].conversions,
     }));
 
+    const { count: totalConversions, error: conversionError } = await supabaseAdmin
+      .from('public_conversions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+    if (conversionError) throw conversionError;
+
+    const autonomousResolutionRate = totalConversations > 0 ? (totalConversions / totalConversations) * 100 : 0;
+
     if (totalConversations === 0) {
       return new Response(JSON.stringify({
         totalConversations: 0,
@@ -88,7 +96,8 @@ serve(async (req) => {
         timeSavedMinutes: 0,
         costSavedUSD: 0,
         avgMessagesPerConversation: 0,
-        activity: combinedActivity, // Still return empty activity array
+        autonomousResolutionRate: 0,
+        activity: combinedActivity,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -102,12 +111,6 @@ serve(async (req) => {
 
     const totalMessages = messages.length;
     
-    const { count: totalConversions, error: conversionError } = await supabaseAdmin
-      .from('public_conversions')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-    if (conversionError) throw conversionError;
-
     const totalInteractions = Math.floor(totalMessages / 2);
     const timeSavedMinutes = totalInteractions * AVG_MINUTES_SAVED_PER_INTERACTION;
     const costSavedUSD = (timeSavedMinutes / 60) * AVG_HOURLY_RATE_USD;
@@ -120,6 +123,7 @@ serve(async (req) => {
       timeSavedMinutes: Math.round(timeSavedMinutes),
       costSavedUSD: parseFloat(costSavedUSD.toFixed(2)),
       avgMessagesPerConversation: parseFloat(avgMessagesPerConversation.toFixed(1)),
+      autonomousResolutionRate: parseFloat(autonomousResolutionRate.toFixed(1)),
       activity: combinedActivity,
     };
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Clock, DollarSign, Target } from "lucide-react";
+import { MessageSquare, Clock, DollarSign, Target, ShieldCheck } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +13,7 @@ interface RoiData {
   totalConversions: number;
   timeSavedMinutes: number;
   costSavedUSD: number;
+  autonomousResolutionRate: number;
   activity: { date: string; conversations: number; conversions: number }[];
 }
 
@@ -77,6 +78,7 @@ export const RoiDashboard = () => {
   if (isLoading) {
     return (
       <div className="w-full max-w-4xl space-y-4">
+        <Skeleton className="h-40 w-full mb-4" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
@@ -109,8 +111,29 @@ export const RoiDashboard = () => {
     >
       <div>
         <h2 className="text-xl font-semibold text-white mb-4">Panel de ROI (Retorno de Inversión)</h2>
+        
+        <motion.div custom={0} variants={cardVariants} className="mb-6">
+          <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30 p-6">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+                <ShieldCheck className="w-6 h-6 text-blue-300" />
+                Métrica Clave: Tasa de Resolución Autónoma
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left">
+                <p className="text-5xl font-bold text-white">{stats.autonomousResolutionRate}%</p>
+                <p className="text-blue-200">de las conversaciones se resuelven 100% en automático.</p>
+              </div>
+              <p className="text-gray-300 max-w-md text-center md:text-right text-sm">
+                Este es el porcentaje de interacciones que resultaron en una conversión exitosa (ej. una cita agendada) sin necesidad de que intervenga una persona.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <motion.div custom={0} variants={cardVariants}>
+          <motion.div custom={1} variants={cardVariants}>
             <StatCard 
               title="Conversaciones" 
               value={stats.totalConversations} 
@@ -118,7 +141,7 @@ export const RoiDashboard = () => {
               tooltipText="Número total de conversaciones que tus agentes han gestionado."
             />
           </motion.div>
-          <motion.div custom={1} variants={cardVariants}>
+          <motion.div custom={2} variants={cardVariants}>
             <StatCard 
               title="Conversiones" 
               value={stats.totalConversions} 
@@ -126,7 +149,7 @@ export const RoiDashboard = () => {
               tooltipText="Número de acciones de negocio valiosas completadas por tus agentes, como agendar una cita. Este es un seguimiento preciso, no una estimación."
             />
           </motion.div>
-          <motion.div custom={2} variants={cardVariants}>
+          <motion.div custom={3} variants={cardVariants}>
             <StatCard 
               title="Tiempo Ahorrado" 
               value={`${stats.timeSavedMinutes} min`} 
@@ -134,7 +157,7 @@ export const RoiDashboard = () => {
               tooltipText="Estimación de tiempo ahorrado al automatizar respuestas. Calculado en base a 2.5 minutos por interacción."
             />
           </motion.div>
-          <motion.div custom={3} variants={cardVariants}>
+          <motion.div custom={4} variants={cardVariants}>
             <StatCard 
               title="Coste Ahorrado (USD)" 
               value={`$${stats.costSavedUSD}`} 
@@ -144,7 +167,7 @@ export const RoiDashboard = () => {
           </motion.div>
         </div>
       </div>
-      <motion.div variants={cardVariants} custom={4}>
+      <motion.div variants={cardVariants} custom={5}>
         <AnalyticsChart data={stats.activity} />
       </motion.div>
     </motion.div>
