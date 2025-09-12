@@ -8,6 +8,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const AVG_HOURLY_RATE_USD = 15;
+const AVG_MINUTES_SAVED_PER_INTERACTION = 2.5;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -65,27 +68,41 @@ serve(async (req) => {
       messageCounts[conv.user_id] = (messageCounts[conv.user_id] || 0) + messageCount;
     });
 
-    const usersWithStats = usersData.map(user => ({
-      id: user.id,
-      email: user.email,
-      created_at: user.created_at,
-      subscribed_at: profilesMap[user.id]?.subscribed_at || null,
-      first_name: profilesMap[user.id]?.first_name || null,
-      last_name: profilesMap[user.id]?.last_name || null,
-      agent_count: agentCounts[user.id] || 0,
-      message_count: messageCounts[user.id] || 0,
-    }));
+    const usersWithStats = usersData.map(user => {
+      const message_count = messageCounts[user.id] || 0;
+      const totalInteractions = Math.floor(message_count / 2);
+      const timeSavedMinutes = totalInteractions * AVG_MINUTES_SAVED_PER_INTERACTION;
+      const costSavedUSD = (timeSavedMinutes / 60) * AVG_HOURLY_RATE_USD;
+
+      return {
+        id: user.id,
+        email: user.email,
+        created_at: user.created_at,
+        subscribed_at: profilesMap[user.id]?.subscribed_at || null,
+        first_name: profilesMap[user.id]?.first_name || null,
+        last_name: profilesMap[user.id]?.last_name || null,
+        agent_count: agentCounts[user.id] || 0,
+        message_count: message_count,
+        time_saved: Math.round(timeSavedMinutes),
+        cost_saved: parseFloat(costSavedUSD.toFixed(2)),
+      };
+    });
 
     const totalAgents = agentsData.length;
     const totalMessages = privateMessages.length + publicConversations.reduce((sum, conv) => {
         const messageCount = conv.public_messages ? conv.public_messages.length : 0;
         return sum + messageCount;
     }, 0);
+    
+    const totalTimeSaved = usersWithStats.reduce((sum, user) => sum + user.time_saved, 0);
+    const totalCostSaved = usersWithStats.reduce((sum, user) => sum + user.cost_saved, 0);
 
     const responsePayload = {
       totalUsers: usersData.length,
       totalAgents,
       totalMessages,
+      totalTimeSaved,
+      totalCostSaved: parseFloat(totalCostSaved.toFixed(2)),
       usersWithStats,
     };
 

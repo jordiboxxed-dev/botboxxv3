@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Bot, MessageSquare, ArrowLeft, Star } from "lucide-react";
+import { Users, Bot, MessageSquare, ArrowLeft, Star, Clock, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { format } from "date-fns";
@@ -27,16 +27,20 @@ interface UserStat {
   message_count: number;
   first_name: string | null;
   last_name: string | null;
+  time_saved: number;
+  cost_saved: number;
 }
 
 interface AnalyticsData {
   totalUsers: number;
   totalAgents: number;
   totalMessages: number;
+  totalTimeSaved: number;
+  totalCostSaved: number;
   usersWithStats: UserStat[];
 }
 
-const StatCard = ({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) => (
+const StatCard = ({ title, value, icon }: { title: string; value: string | number; icon: React.ReactNode }) => (
   <Card className="bg-black/30 border-white/10 text-white">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
@@ -75,7 +79,9 @@ const AdminDashboard = () => {
       <div className="min-h-screen bg-gray-900 p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           <Skeleton className="h-10 w-64" />
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
@@ -116,11 +122,13 @@ const AdminDashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid gap-4 md:grid-cols-3 mb-8"
+          className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-8"
         >
           <StatCard title="Total de Usuarios" value={data.totalUsers} icon={<Users className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Total de Agentes" value={data.totalAgents} icon={<Bot className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Total de Mensajes" value={data.totalMessages} icon={<MessageSquare className="h-4 w-4 text-gray-400" />} />
+          <StatCard title="Tiempo Ahorrado" value={`${data.totalTimeSaved} min`} icon={<Clock className="h-4 w-4 text-green-400" />} />
+          <StatCard title="Coste Ahorrado (USD)" value={`$${data.totalCostSaved}`} icon={<DollarSign className="h-4 w-4 text-green-400" />} />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -142,6 +150,8 @@ const AdminDashboard = () => {
                       <TableHead className="text-gray-200">Registro</TableHead>
                       <TableHead className="text-gray-200 text-right">Agentes</TableHead>
                       <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
+                      <TableHead className="text-gray-200 text-right">Tiempo Ahorrado</TableHead>
+                      <TableHead className="text-gray-200 text-right">Coste Ahorrado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -154,6 +164,8 @@ const AdminDashboard = () => {
                           <TableCell className="text-gray-300">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
                           <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
                           <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+                          <TableCell className="text-right text-green-400">{user.time_saved} min</TableCell>
+                          <TableCell className="text-right text-green-400">${user.cost_saved}</TableCell>
                         </TableRow>
                       );
                     })}
