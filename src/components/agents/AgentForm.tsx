@@ -121,10 +121,14 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="mistralai/mistral-7b-instruct">Mistral 7B Instruct (Rápido y Económico)</SelectItem>
+                <SelectItem value="meta-llama/llama-3-8b-instruct">Llama 3 8B Instruct (Equilibrado)</SelectItem>
+                <SelectItem value="mistralai/mixtral-8x7b-instruct">Mixtral 8x7B (Avanzado)</SelectItem>
+                <SelectItem value="meta-llama/llama-3-70b-instruct">Llama 3 70B Instruct (Potente)</SelectItem>
+                <SelectItem value="openai/gpt-4o">OpenAI GPT-4o (Máxima Calidad)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-400 mt-2">
-              Elige el motor de IA que procesará las instrucciones y el contexto.
+              Elige el motor de IA que procesará las instrucciones y el contexto. Modelos más potentes pueden tener un coste mayor.
             </p>
           </div>
         </div>
