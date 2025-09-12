@@ -99,14 +99,10 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       if (!session) {
         throw new Error("No estás autenticado.");
       }
-
-      const rawSystemPrompt = ('system_prompt' in selectedAgent && selectedAgent.system_prompt) || "Eres un asistente de IA servicial.";
-      const companyName = ('company_name' in selectedAgent && selectedAgent.company_name) || "la empresa";
-      const systemPrompt = rawSystemPrompt.replace(/\[Nombre de la Empresa\]/g, companyName);
       
       const history = messages;
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-gemini`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-agent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +113,6 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
           agentId: selectedAgent.id,
           prompt,
           history,
-          systemPrompt
         })
       });
 

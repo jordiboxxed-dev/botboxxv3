@@ -9,6 +9,13 @@ import { Loader2 } from "lucide-react";
 import { Agent } from "@/components/layout/AppLayout";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AgentFormProps {
   onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at' | 'deleted_at'>) => Promise<void>;
@@ -28,6 +35,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [widgetWelcomeMessage, setWidgetWelcomeMessage] = useState("¡Hola! ¿Cómo puedo ayudarte hoy?");
   const [widgetPosition, setWidgetPosition] = useState("right");
   const [status, setStatus] = useState("active");
+  const [model, setModel] = useState("mistralai/mistral-7b-instruct");
   
   useEffect(() => {
     if (initialData) {
@@ -39,6 +47,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetWelcomeMessage(initialData.widget_welcome_message || "¡Hola! ¿Cómo puedo ayudarte hoy?");
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
+      setModel(initialData.model || "mistralai/mistral-7b-instruct");
     }
   }, [initialData]);
 
@@ -56,7 +65,8 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       widget_color: widgetColor,
       widget_welcome_message: widgetWelcomeMessage,
       widget_position: widgetPosition,
-      status
+      status,
+      model
     });
   };
 
@@ -82,6 +92,20 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
           <div>
             <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
             <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 text-white mt-2 min-h-[120px]" />
+          </div>
+          <div>
+            <Label htmlFor="model" className="text-white">Modelo de IA</Label>
+            <Select value={model} onValueChange={setModel}>
+              <SelectTrigger id="model" className="bg-black/20 border-white/20 text-white mt-2">
+                <SelectValue placeholder="Selecciona un modelo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mistralai/mistral-7b-instruct">Mistral 7B Instruct (Rápido y Económico)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-400 mt-2">
+              Elige el motor de inteligencia artificial para tu agente. Mistral 7B es ideal para la mayoría de los casos de uso.
+            </p>
           </div>
         </div>
       </div>

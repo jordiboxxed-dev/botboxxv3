@@ -20,6 +20,7 @@ export interface Agent {
   widget_position: string | null;
   status: string;
   deleted_at: string | null;
+  model: string | null;
 }
 
 export const AppLayout = () => {
