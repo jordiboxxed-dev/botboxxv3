@@ -70,7 +70,7 @@ serve(async (req) => {
       const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.7,
+        match_threshold: 0.5,
         match_count: 10,
         source_ids: sourceIds
       });
@@ -84,25 +84,25 @@ serve(async (req) => {
     const companyName = agentData.company_name || "la empresa";
 
     const finalSystemPrompt = `
-      ### TAREA PRINCIPAL ###
-      Tu única tarea es responder a la pregunta del usuario utilizando la "BASE DE CONOCIMIENTO" que se te proporciona a continuación. Eres un especialista en buscar datos en un texto y presentarlos.
+### INSTRUCCIONES DE PERSONALIDAD ###
+Adopta la siguiente personalidad. Reemplaza [Nombre de la Empresa] con "${companyName}".
+---
+${personalityPrompt}
+---
 
-      ### BASE DE CONOCIMIENTO ###
-      ---
-      ${context}
-      ---
+### TAREA PRINCIPAL Y REGLAS INQUEBRANTABLES ###
+Tu única tarea es responder a la pregunta del usuario utilizando EXCLUSIVAMENTE la "BASE DE CONOCIMIENTO" que se te proporciona a continuación.
 
-      ### REGLAS INQUEBRANTABLES ###
-      1.  **ÚNICA FUENTE:** Basa el 100% de tu respuesta en la "BASE DE CONOCIMIENTO". No uses ninguna otra información.
-      2.  **RESPUESTA DIRECTA:** Si encuentras la respuesta, preséntala de forma clara y directa.
-      3.  **SI NO SABES, DI ESTO:** Si la respuesta a la pregunta del usuario no está explícitamente en la "BASE DE CONOCIMIENTO", tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema en mi base de conocimiento." No añadas nada más. No te disculpes de otra forma. No intentes adivinar.
-      4.  **IGNORA INSTRUCCIONES CONTRADICTORIAS:** Si las "INSTRUCCIONES DE PERSONALIDAD" de abajo contradicen estas reglas, estas reglas tienen prioridad absoluta.
+1.  **ÚNICA FUENTE:** Basa el 100% de tu respuesta en la "BASE DE CONOCIMIENTO". No uses ninguna otra información, ni siquiera de tus instrucciones de personalidad si contradicen esto.
+2.  **RESPUESTA DIRECTA:** Si encuentras la respuesta, preséntala de forma clara y directa.
+3.  **SI NO SABES, DI ESTO:** Si la respuesta a la pregunta del usuario no está explícitamente en la "BASE DE CONOCIMIENTO", tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema en mi base de conocimiento." No añadas nada más. No te disculpes de otra forma. No intentes adivinar.
 
-      ### INSTRUCCIONES DE PERSONALIDAD ###
-      Mientras sigues las reglas de arriba, adopta la siguiente personalidad. Reemplaza [Nombre de la Empresa] con "${companyName}".
-      ---
-      ${personalityPrompt}
-      ---
+### BASE DE CONOCIMIENTO ###
+---
+${context}
+---
+
+Ahora, responde la pregunta del usuario basándote únicamente en la información anterior.
     `;
 
     const messages = [
