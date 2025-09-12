@@ -97,9 +97,25 @@ serve(async (req) => {
       });
 
       if (!webhookResponse.ok) {
+        const errorBody = await webhookResponse.text();
+        console.error("Webhook error response:", errorBody);
         throw new Error(`El webhook devolvió un error: ${webhookResponse.statusText}`);
       }
-      responseStream = webhookResponse.body;
+      
+      const webhookJson = await webhookResponse.json();
+      const responseText = webhookJson.output;
+
+      if (typeof responseText !== 'string') {
+        throw new Error("La respuesta del webhook no contenía un campo 'output' de tipo texto.");
+      }
+
+      // Convertir el texto final en un stream para que coincida con el formato esperado
+      responseStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(responseText));
+          controller.close();
+        }
+      });
 
     } else {
       // --- Lógica de IA Interna (OpenRouter) ---
