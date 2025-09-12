@@ -74,9 +74,8 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       return;
     }
 
-    const currentHistory = [...messages];
     const userMessage: Message = { role: "user", content: prompt };
-    setMessages(prevMessages => [...prevMessages, userMessage, { role: "assistant", content: "" }]);
+    setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -93,12 +92,16 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         content: prompt,
     });
 
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("No estás autenticado.");
       }
       
+      const history = messages;
+
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-agent`, {
         method: 'POST',
         headers: {
@@ -109,7 +112,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         body: JSON.stringify({
           agentId: selectedAgent.id,
           prompt,
-          history: currentHistory,
+          history,
         })
       });
 

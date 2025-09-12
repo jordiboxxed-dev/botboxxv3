@@ -59,12 +59,14 @@ export const PublicChatInterface = () => {
       conversationIdRef.current = crypto.randomUUID();
     }
 
-    const currentHistory = [...messages];
     const userMessage: Message = { role: "user", content: prompt };
-    setMessages(prevMessages => [...prevMessages, userMessage, { role: "assistant", content: "" }]);
+    setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
 
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
     try {
+      const history = messages;
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-public-agent`, {
         method: 'POST',
         headers: {
@@ -74,7 +76,7 @@ export const PublicChatInterface = () => {
         body: JSON.stringify({ 
           agentId, 
           prompt, 
-          history: currentHistory, 
+          history, 
           conversationId: conversationIdRef.current 
         })
       });
