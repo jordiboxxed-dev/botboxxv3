@@ -53,7 +53,6 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
       setModel(initialData.model || "mistralai/mistral-7b-instruct");
-      // Solo el admin puede ver y cambiar el webhook, así que solo para él cargamos el valor guardado.
       if (usageInfo?.role === 'admin') {
         setWebhookUrl(initialData.webhook_url || DEFAULT_WEBHOOK_URL);
       }
@@ -113,24 +112,26 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               Define el comportamiento del agente. Aquí le indicarás cómo y cuándo usar herramientas como el calendario.
             </p>
           </div>
-          <div>
-            <Label htmlFor="model" className="text-white">Modelo de IA</Label>
-            <Select value={model} onValueChange={setModel}>
-              <SelectTrigger id="model" className="bg-black/20 border-white/20 text-white mt-2">
-                <SelectValue placeholder="Selecciona un modelo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mistralai/mistral-7b-instruct">Mistral 7B Instruct (Rápido y Económico)</SelectItem>
-                <SelectItem value="meta-llama/llama-3-8b-instruct">Llama 3 8B Instruct (Equilibrado)</SelectItem>
-                <SelectItem value="mistralai/mixtral-8x7b-instruct">Mixtral 8x7B (Avanzado)</SelectItem>
-                <SelectItem value="meta-llama/llama-3-70b-instruct">Llama 3 70B Instruct (Potente)</SelectItem>
-                <SelectItem value="openai/gpt-4o">OpenAI GPT-4o (Máxima Calidad)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-400 mt-2">
-              Elige el motor de IA que procesará las instrucciones y el contexto. Modelos más potentes pueden tener un coste mayor.
-            </p>
-          </div>
+          {usageInfo?.role === 'admin' && (
+            <div>
+              <Label htmlFor="model" className="text-white">Modelo de IA (Admin)</Label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger id="model" className="bg-black/20 border-white/20 text-white mt-2">
+                  <SelectValue placeholder="Selecciona un modelo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mistralai/mistral-7b-instruct">Mistral 7B Instruct (Rápido y Económico)</SelectItem>
+                  <SelectItem value="meta-llama/llama-3-8b-instruct">Llama 3 8B Instruct (Equilibrado)</SelectItem>
+                  <SelectItem value="mistralai/mixtral-8x7b-instruct">Mixtral 8x7B (Avanzado)</SelectItem>
+                  <SelectItem value="meta-llama/llama-3-70b-instruct">Llama 3 70B Instruct (Potente)</SelectItem>
+                  <SelectItem value="openai/gpt-4o">OpenAI GPT-4o (Máxima Calidad)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-400 mt-2">
+                Elige el motor de IA que procesará las instrucciones y el contexto.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
