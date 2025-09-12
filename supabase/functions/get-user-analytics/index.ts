@@ -36,11 +36,50 @@ serve(async (req) => {
 
     const { data: conversations, error: convError } = await supabaseAdmin
       .from('public_conversations')
-      .select('id')
+      .select('id, created_at') // Select created_at
       .eq('user_id', user.id);
     if (convError) throw convError;
 
     const totalConversations = conversations.length;
+    
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: dailyConversions, error: dailyConversionError } = await supabaseAdmin
+      .from('public_conversions')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', thirtyDaysAgo);
+    if (dailyConversionError) throw dailyConversionError;
+
+    const formatDailyData = (data) => {
+      const counts = data.reduce((acc, item) => {
+        const date = item.created_at.split('T')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const result = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateString = d.toISOString().split('T')[0];
+        result.push({
+          date: dateString,
+          count: counts[dateString] || 0,
+        });
+      }
+      return result;
+    };
+
+    const dailyConversations = conversations.filter(c => new Date(c.created_at) >= new Date(thirtyDaysAgo));
+    const conversationActivity = formatDailyData(dailyConversations).map(d => ({ date: d.date, conversations: d.count }));
+    const conversionActivity = formatDailyData(dailyConversions).map(d => ({ date: d.date, conversions: d.count }));
+
+    const combinedActivity = conversationActivity.map((conv, index) => ({
+        ...conv,
+        conversions: conversionActivity[index].conversions,
+    }));
+
     if (totalConversations === 0) {
       return new Response(JSON.stringify({
         totalConversations: 0,
@@ -49,6 +88,7 @@ serve(async (req) => {
         timeSavedMinutes: 0,
         costSavedUSD: 0,
         avgMessagesPerConversation: 0,
+        activity: combinedActivity, // Still return empty activity array
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -80,6 +120,7 @@ serve(async (req) => {
       timeSavedMinutes: Math.round(timeSavedMinutes),
       costSavedUSD: parseFloat(costSavedUSD.toFixed(2)),
       avgMessagesPerConversation: parseFloat(avgMessagesPerConversation.toFixed(1)),
+      activity: combinedActivity,
     };
 
     return new Response(JSON.stringify(responsePayload), {

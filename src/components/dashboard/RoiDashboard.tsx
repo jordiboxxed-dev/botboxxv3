@@ -3,19 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Clock, DollarSign, Target } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnalyticsChart } from "./AnalyticsChart";
 
 interface RoiData {
   totalConversations: number;
   totalConversions: number;
   timeSavedMinutes: number;
   costSavedUSD: number;
+  activity: { date: string; conversations: number; conversions: number }[];
 }
 
 const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: string | number; icon: React.ReactNode; tooltipText: string }) => (
-  <Card className="bg-black/30 border-white/10 text-white">
+  <Card className="bg-black/30 border-white/10 text-white h-full">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
       <TooltipProvider>
@@ -36,6 +38,19 @@ const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: s
     </CardContent>
   </Card>
 );
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.1,
+      duration: 0.4,
+      ease: "easeOut",
+    },
+  }),
+};
 
 export const RoiDashboard = () => {
   const [stats, setStats] = useState<RoiData | null>(null);
@@ -68,6 +83,7 @@ export const RoiDashboard = () => {
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
+        <Skeleton className="h-80 w-full" />
       </div>
     );
   }
@@ -86,40 +102,51 @@ export const RoiDashboard = () => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 }}
+      initial="hidden"
+      animate="visible"
+      transition={{ staggerChildren: 0.1 }}
       className="w-full max-w-4xl space-y-6"
     >
       <div>
         <h2 className="text-xl font-semibold text-white mb-4">Panel de ROI (Retorno de Inversión)</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard 
-            title="Conversaciones" 
-            value={stats.totalConversations} 
-            icon={<MessageSquare className="h-5 w-5 text-gray-400" />}
-            tooltipText="Número total de conversaciones que tus agentes han gestionado."
-          />
-          <StatCard 
-            title="Conversiones" 
-            value={stats.totalConversions} 
-            icon={<Target className="h-5 w-5 text-gray-400" />}
-            tooltipText="Número de acciones de negocio valiosas completadas por tus agentes, como agendar una cita. Este es un seguimiento preciso, no una estimación."
-          />
-          <StatCard 
-            title="Tiempo Ahorrado" 
-            value={`${stats.timeSavedMinutes} min`} 
-            icon={<Clock className="h-5 w-5 text-gray-400" />}
-            tooltipText="Estimación de tiempo ahorrado al automatizar respuestas. Calculado en base a 2.5 minutos por interacción."
-          />
-          <StatCard 
-            title="Coste Ahorrado (USD)" 
-            value={`$${stats.costSavedUSD}`} 
-            icon={<DollarSign className="h-5 w-5 text-gray-400" />}
-            tooltipText="Estimación del ahorro en costes de personal. Calculado en base a una tarifa promedio de $15/hora."
-          />
+          <motion.div custom={0} variants={cardVariants}>
+            <StatCard 
+              title="Conversaciones" 
+              value={stats.totalConversations} 
+              icon={<MessageSquare className="h-5 w-5 text-gray-400" />}
+              tooltipText="Número total de conversaciones que tus agentes han gestionado."
+            />
+          </motion.div>
+          <motion.div custom={1} variants={cardVariants}>
+            <StatCard 
+              title="Conversiones" 
+              value={stats.totalConversions} 
+              icon={<Target className="h-5 w-5 text-gray-400" />}
+              tooltipText="Número de acciones de negocio valiosas completadas por tus agentes, como agendar una cita. Este es un seguimiento preciso, no una estimación."
+            />
+          </motion.div>
+          <motion.div custom={2} variants={cardVariants}>
+            <StatCard 
+              title="Tiempo Ahorrado" 
+              value={`${stats.timeSavedMinutes} min`} 
+              icon={<Clock className="h-5 w-5 text-gray-400" />}
+              tooltipText="Estimación de tiempo ahorrado al automatizar respuestas. Calculado en base a 2.5 minutos por interacción."
+            />
+          </motion.div>
+          <motion.div custom={3} variants={cardVariants}>
+            <StatCard 
+              title="Coste Ahorrado (USD)" 
+              value={`$${stats.costSavedUSD}`} 
+              icon={<DollarSign className="h-5 w-5 text-gray-400" />}
+              tooltipText="Estimación del ahorro en costes de personal. Calculado en base a una tarifa promedio de $15/hora."
+            />
+          </motion.div>
         </div>
       </div>
+      <motion.div variants={cardVariants} custom={4}>
+        <AnalyticsChart data={stats.activity} />
+      </motion.div>
     </motion.div>
   );
 };
