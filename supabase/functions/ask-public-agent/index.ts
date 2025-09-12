@@ -89,7 +89,7 @@ serve(async (req) => {
       **Instrucciones del Agente (Personalidad y Tono):**
       ${systemPrompt}
       ---
-      **REGLA CRÍTICA:** Responde a la pregunta del usuario basándote ESTRICTAMENTE en el 'Contexto' proporcionado. Si la respuesta no se encuentra en el contexto, indica amablemente que no tienes esa información. NO uses conocimiento externo.
+      **REGLA CRÍTICA:** Tu respuesta DEBE basarse ESTRICTA Y ÚNICAMENTE en la información del 'Contexto' proporcionado. Si la respuesta a la pregunta del usuario no se encuentra en el contexto, tu única respuesta debe ser: "Lo siento, no tengo información sobre ese tema en mi base de conocimiento. ¿Hay algo más en lo que pueda ayudarte?". No inventes, no adivines, y no utilices conocimiento externo bajo ninguna circunstancia.
     `;
     
     const messages = [
