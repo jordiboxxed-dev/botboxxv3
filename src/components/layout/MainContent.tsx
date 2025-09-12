@@ -75,7 +75,8 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
     }
 
     const userMessage: Message = { role: "user", content: prompt };
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setIsLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -100,7 +101,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         throw new Error("No estás autenticado.");
       }
       
-      const history = messages;
+      const history = updatedMessages;
 
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-agent`, {
         method: 'POST',
