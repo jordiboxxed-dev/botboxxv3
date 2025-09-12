@@ -60,14 +60,13 @@ export const PublicChatInterface = () => {
     }
 
     const userMessage: Message = { role: "user", content: prompt };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
 
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const history = updatedMessages;
+      const history = messages;
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-public-agent`, {
         method: 'POST',
         headers: {
