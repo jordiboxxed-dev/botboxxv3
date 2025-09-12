@@ -20,7 +20,10 @@ async function getCalendarEvents(userId, supabaseAdmin) {
       .single();
 
     if (credsError || !creds) {
-      return "El usuario no ha conectado su Google Calendar.";
+      return {
+        summary: "El usuario no ha conectado su Google Calendar.",
+        events: []
+      };
     }
 
     let { access_token, refresh_token, expires_at } = creds;
@@ -44,7 +47,10 @@ async function getCalendarEvents(userId, supabaseAdmin) {
       const newTokens = await refreshResponse.json();
       if (newTokens.error) {
         console.error("Error refreshing token:", newTokens.error_description);
-        return "Error al refrescar la conexión con Google Calendar.";
+        return {
+          error: "Error al refrescar la conexión con Google Calendar.",
+          events: []
+        };
       }
 
       access_token = newTokens.access_token;
@@ -75,22 +81,37 @@ async function getCalendarEvents(userId, supabaseAdmin) {
     if (!eventsResponse.ok) {
       const errorData = await eventsResponse.json();
       console.error("Google Calendar API error:", errorData);
-      return `Error al obtener eventos del calendario: ${errorData.error.message}`;
+      return {
+        error: `Error al obtener eventos del calendario: ${errorData.error.message}`,
+        events: []
+      };
     }
 
     const eventsData = await eventsResponse.json();
     if (!eventsData.items || eventsData.items.length === 0) {
-      return "No hay eventos próximos en el calendario para los siguientes 7 días.";
+      return {
+        summary: "No hay eventos próximos en el calendario para los siguientes 7 días.",
+        events: []
+      };
     }
 
-    return "Eventos del calendario para los próximos 7 días:\n" + eventsData.items.map(event => {
-      const start = event.start.dateTime || event.start.date;
-      return `- ${event.summary} (Inicio: ${new Date(start).toLocaleString('es-ES')})`;
-    }).join("\n");
+    const events = eventsData.items.map(event => ({
+      summary: event.summary,
+      startTime: event.start.dateTime || event.start.date,
+      endTime: event.end.dateTime || event.end.date,
+    }));
+
+    return {
+      summary: `Hay ${events.length} evento(s) en el calendario para los próximos 7 días.`,
+      events: events
+    };
 
   } catch (error) {
     console.error("Error in getCalendarEvents:", error);
-    return "Ocurrió un error inesperado al intentar acceder a Google Calendar.";
+    return {
+      error: "Ocurrió un error inesperado al intentar acceder a Google Calendar.",
+      events: []
+    };
   }
 }
 
