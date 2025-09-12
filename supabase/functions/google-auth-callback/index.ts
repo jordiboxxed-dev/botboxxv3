@@ -49,12 +49,6 @@ serve(async (req) => {
     }
 
     const { access_token, refresh_token, expires_in } = tokens;
-    // Google OAuth puede no devolver siempre un refresh_token si ya existe uno y no se forzó `prompt=consent`.
-    // Pero como lo forzamos en `google-auth-start`, debería estar aquí.
-    if (!refresh_token) {
-        console.warn("Warning: No refresh_token received. This might cause issues later.");
-        // Podríamos redirigir con un mensaje de advertencia si es crítico.
-    }
     const expires_at = new Date(Date.now() + expires_in * 1000).toISOString();
 
     // Guardar credenciales en Supabase
@@ -63,15 +57,19 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
+    // Construir el objeto a guardar, incluyendo el refresh_token solo si se recibió uno nuevo.
+    // Esto evita borrar un refresh_token existente si Google no envía uno nuevo.
+    const upsertData = {
+      user_id: userId,
+      service: "google_calendar",
+      access_token,
+      expires_at,
+      ...(refresh_token && { refresh_token }),
+    };
+
     const { error: upsertError } = await supabaseAdmin
       .from("user_credentials")
-      .upsert({
-        user_id: userId, // Usamos el userId del state
-        service: "google_calendar",
-        access_token,
-        refresh_token, // Puede ser null
-        expires_at,
-      }, { onConflict: 'user_id, service' });
+      .upsert(upsertData, { onConflict: 'user_id, service' });
 
     if (upsertError) {
         console.error("Error upserting credentials to Supabase:", upsertError);

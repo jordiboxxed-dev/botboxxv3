@@ -30,6 +30,12 @@ async function getCalendarEvents(userId, supabaseAdmin) {
 
     // Refresh token si es necesario
     if (new Date(expires_at) < new Date()) {
+      if (!refresh_token) {
+        console.error(`Refresh token missing for user ${userId}. Deleting credentials to force re-auth.`);
+        await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
+        return { error: "La conexión con Google Calendar ha expirado. Por favor, vuelve a conectar tu calendario desde la pestaña 'Herramientas'.", events: [] };
+      }
+
       const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
       const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
       
@@ -47,6 +53,11 @@ async function getCalendarEvents(userId, supabaseAdmin) {
       const newTokens = await refreshResponse.json();
       if (newTokens.error) {
         console.error("Error refreshing token:", newTokens.error_description);
+        if (newTokens.error === 'invalid_grant') {
+          console.error(`Invalid grant for user ${userId}. Deleting credentials.`);
+          await supabaseAdmin.from("user_credentials").delete().eq("user_id", userId).eq("service", "google_calendar");
+          return { error: "La autorización de Google Calendar fue revocada. Por favor, vuelve a conectar tu calendario desde la pestaña 'Herramientas'.", events: [] };
+        }
         return {
           error: "Error al refrescar la conexión con Google Calendar.",
           events: []
