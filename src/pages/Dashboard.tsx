@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bot, PlusCircle, LogOut, UserCog } from "lucide-react";
 import { motion } from "framer-motion";
-import { AnalyticsDashboard } from "@/components/dashboard/AnalyticsDashboard";
+import { RoiDashboard } from "@/components/dashboard/RoiDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingGuide } from "@/components/dashboard/OnboardingGuide";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -144,7 +144,7 @@ const Dashboard = () => {
             <div className="my-6 border-t border-white/10"></div>
           </div>
 
-          <AnalyticsDashboard />
+          <RoiDashboard />
         </>
       )}
     </div>
