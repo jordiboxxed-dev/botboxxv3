@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bot, PlusCircle, LogOut, UserCog } from "lucide-react";
 import { motion } from "framer-motion";
@@ -10,12 +10,29 @@ import { useUsage } from "@/hooks/useUsage";
 import { PlanUsageBanner } from "@/components/dashboard/PlanUsageBanner";
 import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useEffect } from "react";
+import { showError, showSuccess } from "@/utils/toast";
 
 const Dashboard = () => {
   const { usageInfo, isLoading: isLoadingUsage } = useUsage();
   const templatesCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.4)" });
   const createCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(52, 211, 153, 0.4)" });
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const googleAuthStatus = params.get('google_auth');
+    if (googleAuthStatus) {
+      if (googleAuthStatus === 'success') {
+        showSuccess("Google Calendar conectado exitosamente.");
+      } else if (googleAuthStatus === 'error') {
+        const message = params.get('message') || "Ocurrió un error desconocido.";
+        showError(`Error al conectar Google Calendar: ${message}`);
+      }
+      // Limpiar los parámetros de la URL para no mostrar el toast en cada recarga
+      window.history.replaceState({}, document.title, "/dashboard");
+    }
+  }, [location]);
 
   if (isLoadingUsage) {
     return (
