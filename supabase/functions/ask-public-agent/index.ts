@@ -201,34 +201,30 @@ serve(async (req) => {
       throw new Error(`El webhook de n8n devolvió un error (${webhookResponse.status}): ${errorText}`);
     }
 
+    // --- Procesar la respuesta del Webhook ---
+    const responseData = await webhookResponse.json();
+    const responseText = responseData.output;
+
+    if (typeof responseText !== 'string') {
+      throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
+    }
+
     // --- Incrementar contador de mensajes del propietario ---
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: agentOwnerId });
     }
     
     // --- Guardar respuesta y devolver stream ---
-    const responseBody = webhookResponse.body;
-    if (!responseBody) {
-        throw new Error("El webhook no devolvió un cuerpo de respuesta.");
-    }
+    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: responseText });
 
-    // Duplicamos el stream para poder leerlo y enviarlo al cliente
-    const [stream1, stream2] = responseBody.tee();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(responseText));
+        controller.close();
+      },
+    });
 
-    // Leemos el stream1 para obtener el texto completo y guardarlo en la base de datos
-    const reader = stream1.getReader();
-    const decoder = new TextDecoder();
-    let fullResponseText = "";
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullResponseText += decoder.decode(value, { stream: true });
-    }
-    
-    await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: fullResponseText });
-
-    // Devolvemos el stream2 al cliente para que lo vea en tiempo real
-    return new Response(stream2, {
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/plain" },
     });
 

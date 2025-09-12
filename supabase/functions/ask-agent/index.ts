@@ -204,14 +204,28 @@ serve(async (req) => {
       throw new Error(`El webhook de n8n devolvió un error (${webhookResponse.status}): ${errorText}`);
     }
 
+    // --- Procesar la respuesta del Webhook ---
+    const responseData = await webhookResponse.json();
+    const responseText = responseData.output;
+
+    if (typeof responseText !== 'string') {
+      throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
+    }
+
     // --- Incrementar contador de mensajes ---
     if (profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
     }
 
-    // --- Devolver la respuesta del webhook directamente al cliente ---
-    // El cliente (frontend) se encargará de leer el stream y guardar el mensaje final.
-    return new Response(webhookResponse.body, {
+    // --- Devolver la respuesta como un stream de texto plano ---
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(responseText));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/plain" },
     });
 
