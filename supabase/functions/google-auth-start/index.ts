@@ -44,7 +44,10 @@ serve(async (req) => {
     authUrl.searchParams.set("prompt", "consent");
     authUrl.searchParams.set("state", user.id); // Pasamos el user_id en el state para recuperarlo en el callback
 
-    return Response.redirect(authUrl.toString(), 302);
+    return new Response(JSON.stringify({ authUrl: authUrl.toString() }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
 
   } catch (error) {
     console.error("Error in google-auth-start:", error);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { showError, showSuccess } from "@/utils/toast";
 import { Calendar, CheckCircle, Link, Loader2, XCircle } from "lucide-react";
@@ -43,8 +43,26 @@ export const GoogleCalendarTool = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No estás autenticado.");
 
-      // La función de Edge se encarga de la redirección
-      window.location.href = `${SUPABASE_URL}/functions/v1/google-auth-start`;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/google-auth-start`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "No se pudo obtener la URL de autenticación.");
+      }
+
+      const { authUrl } = await response.json();
+      if (!authUrl) {
+        throw new Error("La respuesta del servidor no contenía una URL de autenticación.");
+      }
+
+      window.location.href = authUrl;
+
     } catch (error) {
       showError("Error al iniciar la conexión: " + (error as Error).message);
       setIsProcessing(false);
