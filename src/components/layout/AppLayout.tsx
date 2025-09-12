@@ -41,11 +41,15 @@ export const AppLayout = () => {
       return { agents: [], error: 'No user' };
     }
 
-    const { data: agents, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('user_id', user.id)
-      .is('deleted_at', null); // Fetch only non-deleted agents
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    const isAdmin = profile?.role === 'admin';
+
+    let query = supabase.from('agents').select('*');
+    if (!isAdmin) {
+      query = query.eq('user_id', user.id);
+    }
+    
+    const { data: agents, error } = await query.is('deleted_at', null);
 
     if (error) {
       console.error("Error fetching agents:", error);
@@ -66,7 +70,7 @@ export const AppLayout = () => {
         if (agentFromDb) {
           setSelectedAgent(agentFromDb);
         } else {
-          console.warn("Agent not found, redirecting to dashboard");
+          console.warn("Agent not found or you don't have permission, redirecting to dashboard");
           navigate('/dashboard');
         }
       } else {
