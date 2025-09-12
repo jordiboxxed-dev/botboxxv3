@@ -16,9 +16,10 @@ interface TemplatePreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   agent: Agent | null;
   onUseTemplate: () => void;
+  isCreationDisabled?: boolean;
 }
 
-export const TemplatePreviewDialog = ({ open, onOpenChange, agent, onUseTemplate }: TemplatePreviewDialogProps) => {
+export const TemplatePreviewDialog = ({ open, onOpenChange, agent, onUseTemplate, isCreationDisabled = false }: TemplatePreviewDialogProps) => {
   if (!agent) return null;
 
   return (
@@ -54,7 +55,13 @@ export const TemplatePreviewDialog = ({ open, onOpenChange, agent, onUseTemplate
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
-          <Button onClick={onUseTemplate}>Usar esta Plantilla</Button>
+          <Button 
+            onClick={onUseTemplate}
+            disabled={isCreationDisabled}
+            title={isCreationDisabled ? "Has alcanzado el límite de agentes de tu plan" : ""}
+          >
+            Usar esta Plantilla
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

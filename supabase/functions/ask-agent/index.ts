@@ -155,6 +155,53 @@ async function createCalendarEvent(userId, params, supabaseAdmin) {
   }
 }
 
+const checkMessageLimit = async (userId, supabaseAdmin) => {
+    const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('plan, trial_ends_at, role')
+        .eq('id', userId)
+        .single();
+
+    if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
+    if (profile.role === 'admin') return; // Admins have no limits
+
+    const { plan, trial_ends_at } = profile;
+
+    const getLimits = (p) => {
+        switch (p) {
+            case 'trial': return { msg: 150, name: 'Prueba' };
+            case 'pro': return { msg: 1000, name: 'Pro' };
+            case 'premium': return { msg: 10000, name: 'Premium' };
+            default: return { msg: Infinity, name: 'Desconocido' };
+        }
+    };
+
+    const limits = getLimits(plan);
+
+    if (plan === 'trial' && trial_ends_at && new Date(trial_ends_at) < new Date()) {
+        throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
+    }
+
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    const { data: usage, error: usageError } = await supabaseAdmin
+        .from('usage_stats')
+        .select('messages_sent')
+        .eq('user_id', userId)
+        .eq('month_start', currentMonthStart)
+        .single();
+
+    if (usageError && usageError.code !== 'PGRST116') { // PGRST116 = no rows found, which is fine
+        throw new Error("No se pudo verificar el uso de mensajes.");
+    }
+
+    const messagesSent = usage?.messages_sent || 0;
+
+    if (messagesSent >= limits.msg) {
+        throw new Error(`Has alcanzado el límite de ${limits.msg} mensajes de tu plan ${limits.name}.`);
+    }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -180,21 +227,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    const { data: profileData, error: profileError } = await supabaseAdmin.from('profiles').select('plan, trial_ends_at, role').eq('id', user.id).single();
-    if (profileError) throw new Error("No se pudo verificar el perfil del usuario.");
-
-    if (profileData.role !== 'admin' && profileData.plan === 'trial') {
-      if (profileData.trial_ends_at && new Date(profileData.trial_ends_at) < new Date()) {
-        throw new Error("Tu período de prueba ha expirado. Por favor, actualiza tu plan para continuar.");
-      }
-      const TRIAL_MESSAGE_LIMIT = 150;
-      const { data: usageData, error: usageError } = await supabaseAdmin.from('usage_stats').select('messages_sent').eq('user_id', user.id);
-      if (usageError) throw new Error("No se pudo verificar el uso de mensajes.");
-      const totalMessagesSent = usageData.reduce((sum, record) => sum + record.messages_sent, 0);
-      if (totalMessagesSent >= TRIAL_MESSAGE_LIMIT) {
-        throw new Error(`Has alcanzado el límite total de ${TRIAL_MESSAGE_LIMIT} mensajes de tu período de prueba.`);
-      }
-    }
+    await checkMessageLimit(user.id, supabaseAdmin);
 
     const { data: agentData, error: agentError } = await supabaseAdmin.from("agents").select("system_prompt, model, company_name, webhook_url").eq("id", agentId).single();
     if (agentError) throw new Error("No se pudo encontrar el agente.");
@@ -265,7 +298,8 @@ serve(async (req) => {
       // Not a JSON or not a valid tool call, treat as plain text.
     }
 
-    if (profileData.role !== 'admin') {
+    const { data: profileData } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
+    if (profileData && profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
     }
 

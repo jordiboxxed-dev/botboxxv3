@@ -16,6 +16,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useUsage } from "@/hooks/useUsage";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   userAgents: Agent[];
@@ -26,8 +28,13 @@ interface SidebarProps {
 
 export const Sidebar = ({ userAgents, activeAgentId, onDeleteAgent, onLinkClick }: SidebarProps) => {
   const navigate = useNavigate();
+  const { usageInfo } = useUsage();
+  const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
 
   const handleNavigate = (path: string) => {
+    if (path === '/create-agent' && agentLimitReached) {
+      return;
+    }
     navigate(path);
     onLinkClick?.();
   };
@@ -45,14 +52,19 @@ export const Sidebar = ({ userAgents, activeAgentId, onDeleteAgent, onLinkClick 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.5 }}
           onClick={() => handleNavigate('/create-agent')}
-          className="w-full text-left p-3 rounded-lg flex items-center gap-4 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-500/30"
+          disabled={agentLimitReached}
+          title={agentLimitReached ? "Has alcanzado el límite de agentes de tu plan" : "Crear un nuevo agente"}
+          className={cn(
+            "w-full text-left p-3 rounded-lg flex items-center gap-4 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-500/30",
+            agentLimitReached && "opacity-50 cursor-not-allowed"
+          )}
         >
           <div className="p-2 bg-white/10 rounded-md">
             <Plus className="w-6 h-6" />
           </div>
           <div>
             <p className="font-semibold">Crear Agente</p>
-            <p className="text-sm text-blue-400">Empezar desde cero</p>
+            <p className="text-sm text-blue-400">{agentLimitReached ? "Límite alcanzado" : "Empezar desde cero"}</p>
           </div>
         </motion.button>
 

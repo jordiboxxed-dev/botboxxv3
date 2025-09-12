@@ -11,9 +11,10 @@ interface TemplateCardProps {
   index: number;
   onPreview: (agent: TemplateAgent) => void;
   onUseTemplate: (agent: TemplateAgent) => void;
+  isCreationDisabled?: boolean;
 }
 
-export const TemplateCard = ({ agent, index, onPreview, onUseTemplate }: TemplateCardProps) => {
+export const TemplateCard = ({ agent, index, onPreview, onUseTemplate, isCreationDisabled = false }: TemplateCardProps) => {
   const cardProps = useInteractiveCard<HTMLDivElement>();
 
   return (
@@ -45,6 +46,8 @@ export const TemplateCard = ({ agent, index, onPreview, onUseTemplate }: Templat
         <Button
           onClick={() => onUseTemplate(agent)}
           className="w-full"
+          disabled={isCreationDisabled}
+          title={isCreationDisabled ? "Has alcanzado el límite de agentes de tu plan" : ""}
         >
           Usar Plantilla
         </Button>

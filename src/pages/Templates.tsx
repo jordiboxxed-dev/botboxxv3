@@ -10,12 +10,15 @@ import { motion } from "framer-motion";
 import { TemplatePreviewDialog } from "@/components/agents/TemplatePreviewDialog";
 import { TemplateCard } from "@/components/agents/TemplateCard";
 import { UserAgentCard } from "@/components/agents/UserAgentCard";
+import { useUsage } from "@/hooks/useUsage";
 
 const Templates = () => {
   const navigate = useNavigate();
+  const { usageInfo, isLoading: isLoadingUsage } = useUsage();
   const [isLoading, setIsLoading] = useState(true);
   const [userAgents, setUserAgents] = useState<any[]>([]);
   const [previewingAgent, setPreviewingAgent] = useState<TemplateAgent | null>(null);
+  const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
 
   const fetchUserAgents = async () => {
     setIsLoading(true);
@@ -48,6 +51,10 @@ const Templates = () => {
   }, [navigate]);
 
   const handleCreateFromTemplate = async (template: any) => {
+    if (agentLimitReached) {
+      showError("Has alcanzado el límite de agentes de tu plan. Mejora tu plan para crear más.");
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -91,7 +98,7 @@ const Templates = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingUsage) {
     return (
       <div className="min-h-screen bg-gray-900 p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
@@ -131,7 +138,13 @@ const Templates = () => {
               <p className="text-lg text-gray-400">Selecciona una plantilla para crear tu agente personalizado.</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button onClick={() => navigate('/create-agent')} variant="outline" className="flex items-center gap-2">
+              <Button 
+                onClick={() => navigate('/create-agent')} 
+                variant="outline" 
+                className="flex items-center gap-2"
+                disabled={agentLimitReached}
+                title={agentLimitReached ? "Has alcanzado el límite de agentes de tu plan" : ""}
+              >
                 <Plus className="w-4 h-4" />
                 Crear desde cero
               </Button>
@@ -178,6 +191,7 @@ const Templates = () => {
               index={index}
               onPreview={setPreviewingAgent}
               onUseTemplate={handleCreateFromTemplate}
+              isCreationDisabled={agentLimitReached}
             />
           ))}
         </div>
@@ -193,6 +207,7 @@ const Templates = () => {
           }
           setPreviewingAgent(null);
         }}
+        isCreationDisabled={agentLimitReached}
       />
     </div>
   );
