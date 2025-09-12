@@ -234,11 +234,19 @@ ${prompt}
           throw new Error("El agente intentó usar una herramienta, pero no hay una URL de Webhook configurada.");
         }
         
-        // Llamar al webhook de n8n/Zapier
+        // Crear un payload más completo para el webhook
+        const webhookPayload = {
+          agentId: agentId,
+          agentOwnerId: agentOwnerId,
+          conversationId: conversationId,
+          eventDetails: parsedResponse.params
+        };
+
+        // Llamar al webhook de n8n/Zapier con el nuevo payload
         const webhookResponse = await fetch(agentData.webhook_url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsedResponse.params)
+          body: JSON.stringify(webhookPayload)
         });
 
         if (!webhookResponse.ok) {
