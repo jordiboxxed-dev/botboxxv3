@@ -5,7 +5,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, ArrowLeft, CreditCard, Zap } from "lucide-react";
+import { Loader2, ArrowLeft, CreditCard, Zap, BarChart2 } from "lucide-react";
 import { useUsage } from "@/hooks/useUsage";
 
 const Billing = () => {
@@ -162,6 +162,7 @@ const Billing = () => {
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>5 agentes</li>
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>1,000 mensajes/mes</li>
                 <li className="flex items-center font-semibold text-indigo-300"><Zap className="w-4 h-4 mr-2"/>Herramientas</li>
+                <li className="flex items-center font-semibold text-indigo-300"><BarChart2 className="w-4 h-4 mr-2"/>Panel de ROI y Analíticas</li>
               </ul>
               <Button onClick={() => handleSubscribe('pro')} disabled={isProcessing || plan === 'pro' || plan === 'premium' || plan === 'admin'} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : plan === 'pro' ? "Plan Actual" : "Seleccionar"}
@@ -182,6 +183,7 @@ const Billing = () => {
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>10,000 mensajes/mes</li>
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Cobro por uso excedente</li>
                 <li className="flex items-center font-semibold text-blue-300"><Zap className="w-4 h-4 mr-2"/>Herramientas</li>
+                <li className="flex items-center font-semibold text-blue-300"><BarChart2 className="w-4 h-4 mr-2"/>Panel de ROI y Analíticas</li>
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Soporte prioritario</li>
               </ul>
               <Button onClick={() => handleSubscribe('premium')} disabled={isProcessing || plan === 'premium' || plan === 'admin'} className="w-full bg-blue-600 hover:bg-blue-700">

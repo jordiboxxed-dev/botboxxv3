@@ -12,6 +12,7 @@ import { useInteractiveCard } from "@/hooks/useInteractiveCard";
 import { cn } from "@/lib/utils";
 import React, { useEffect } from "react";
 import { showError, showSuccess } from "@/utils/toast";
+import { UpgradeToProBanner } from "@/components/dashboard/UpgradeToProBanner";
 
 const Dashboard = () => {
   const { usageInfo, isLoading: isLoadingUsage } = useUsage();
@@ -48,6 +49,7 @@ const Dashboard = () => {
 
   const hasAgents = (usageInfo?.agentsCreated ?? 0) > 0;
   const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
+  const canViewRoi = usageInfo && (usageInfo.plan === 'pro' || usageInfo.plan === 'premium' || usageInfo.role === 'admin');
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white p-4 pt-8">
@@ -144,7 +146,7 @@ const Dashboard = () => {
             <div className="my-6 border-t border-white/10"></div>
           </div>
 
-          <RoiDashboard />
+          {canViewRoi ? <RoiDashboard /> : <UpgradeToProBanner />}
         </>
       )}
     </div>
