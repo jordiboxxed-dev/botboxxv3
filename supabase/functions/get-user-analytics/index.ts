@@ -8,9 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LEAD_KEYWORDS = [
-  'agendar', 'reunión', 'visita', 'contacto', 'llamar', 'email', 'precio', 'comprar', 'cotizar', 'presupuesto', 'información', 'interesado'
-];
 const AVG_HOURLY_RATE_USD = 15;
 const AVG_MINUTES_SAVED_PER_INTERACTION = 2.5;
 
@@ -48,7 +45,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         totalConversations: 0,
         totalMessages: 0,
-        leadsGenerated: 0,
+        totalConversions: 0,
         timeSavedMinutes: 0,
         costSavedUSD: 0,
         avgMessagesPerConversation: 0,
@@ -59,19 +56,17 @@ serve(async (req) => {
 
     const { data: messages, error: msgError } = await supabaseAdmin
       .from('public_messages')
-      .select('content, role, conversation_id')
+      .select('id')
       .in('conversation_id', conversationIds);
     if (msgError) throw msgError;
 
     const totalMessages = messages.length;
     
-    const conversationsWithLeadKeyword = new Set();
-    for (const message of messages) {
-        if (message.role === 'user' && LEAD_KEYWORDS.some(keyword => message.content.toLowerCase().includes(keyword))) {
-            conversationsWithLeadKeyword.add(message.conversation_id);
-        }
-    }
-    const leadsGenerated = conversationsWithLeadKeyword.size;
+    const { count: totalConversions, error: conversionError } = await supabaseAdmin
+      .from('public_conversions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+    if (conversionError) throw conversionError;
 
     const totalInteractions = Math.floor(totalMessages / 2);
     const timeSavedMinutes = totalInteractions * AVG_MINUTES_SAVED_PER_INTERACTION;
@@ -81,7 +76,7 @@ serve(async (req) => {
     const responsePayload = {
       totalConversations,
       totalMessages,
-      leadsGenerated,
+      totalConversions: totalConversions || 0,
       timeSavedMinutes: Math.round(timeSavedMinutes),
       costSavedUSD: parseFloat(costSavedUSD.toFixed(2)),
       avgMessagesPerConversation: parseFloat(avgMessagesPerConversation.toFixed(1)),

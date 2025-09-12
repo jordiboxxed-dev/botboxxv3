@@ -281,6 +281,7 @@ serve(async (req) => {
 
     const responseData = await webhookResponse.json();
     let responseText = responseData.output;
+    let conversionData = null;
 
     if (typeof responseText !== 'string') {
       throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
@@ -292,6 +293,12 @@ serve(async (req) => {
         console.log("Public tool call detected: create_calendar_event");
         const result = await createCalendarEvent(agentOwnerId, toolCall.params, supabaseAdmin);
         responseText = result.message;
+        if (result.success) {
+          conversionData = {
+            type: 'appointment_booked',
+            details: toolCall.params
+          };
+        }
       }
     } catch (e) {
       // Not a JSON or not a valid tool call, treat as plain text.
@@ -303,6 +310,16 @@ serve(async (req) => {
     }
     
     await supabaseAdmin.from("public_messages").insert({ conversation_id: conversationId, role: "assistant", content: responseText });
+
+    if (conversionData) {
+      await supabaseAdmin.from("public_conversions").insert({
+        conversation_id: conversationId,
+        agent_id: agentId,
+        user_id: agentOwnerId,
+        type: conversionData.type,
+        details: conversionData.details
+      });
+    }
 
     const stream = new ReadableStream({
       start(controller) {

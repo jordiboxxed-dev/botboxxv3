@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface RoiData {
   totalConversations: number;
-  leadsGenerated: number;
+  totalConversions: number;
   timeSavedMinutes: number;
   costSavedUSD: number;
 }
@@ -101,10 +101,10 @@ export const RoiDashboard = () => {
             tooltipText="Número total de conversaciones que tus agentes han gestionado."
           />
           <StatCard 
-            title="Leads Capturados" 
-            value={stats.leadsGenerated} 
+            title="Conversiones" 
+            value={stats.totalConversions} 
             icon={<Target className="h-5 w-5 text-gray-400" />}
-            tooltipText="Estimación de conversaciones donde el usuario mostró interés de compra o contacto, basado en palabras clave."
+            tooltipText="Número de acciones de negocio valiosas completadas por tus agentes, como agendar una cita. Este es un seguimiento preciso, no una estimación."
           />
           <StatCard 
             title="Tiempo Ahorrado" 
