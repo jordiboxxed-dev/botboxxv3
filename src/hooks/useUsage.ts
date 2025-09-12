@@ -46,8 +46,25 @@ export const useUsage = () => {
       const trialDaysLeft = trialEndsAt ? Math.max(0, differenceInDays(trialEndsAt, new Date())) : null;
       const isTrialActive = plan === 'trial' && trialDaysLeft !== null && trialDaysLeft > 0;
 
-      const messageLimit = plan === 'trial' ? 150 : Infinity;
-      const agentLimit = plan === 'trial' ? 2 : Infinity;
+      const getMessageLimit = () => {
+        switch (plan) {
+          case 'trial': return 150;
+          case 'pro': return 1000;
+          case 'premium': return 10000;
+          default: return Infinity;
+        }
+      };
+
+      const getAgentLimit = () => {
+        switch (plan) {
+          case 'trial': return 2;
+          case 'pro': return 5;
+          default: return Infinity;
+        }
+      };
+
+      const messageLimit = getMessageLimit();
+      const agentLimit = getAgentLimit();
       const messagesSent = usage?.messages_sent || 0;
 
       setUsageInfo({

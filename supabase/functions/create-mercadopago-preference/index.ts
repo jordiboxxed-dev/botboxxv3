@@ -10,7 +10,7 @@ const corsHeaders = {
 const FRONTEND_URL = "https://botboxx-demov2.vercel.app";
 
 serve(async (req) => {
-  console.log("--- Function create-mercadopago-preference invoked (v2) ---");
+  console.log("--- Function create-mercadopago-preference invoked (v3) ---");
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -26,15 +26,30 @@ serve(async (req) => {
       throw new Error("La clave de acceso de MercadoPago no está configurada en los secretos.");
     }
 
+    let price;
+    let title;
+    switch (plan) {
+      case 'pro':
+        price = 97;
+        title = "BotBoxx - Plan Pro";
+        break;
+      case 'premium':
+        price = 297;
+        title = "BotBoxx - Plan Premium";
+        break;
+      default:
+        throw new Error(`Plan '${plan}' no es válido para suscripción.`);
+    }
+
     const preferenceData = {
       items: [
         {
-          id: `premium-plan-${userId}`,
-          title: "BotBoxx - Plan Premium",
-          description: "Suscripción mensual al plan premium de BotBoxx",
+          id: `${plan}-plan-${userId}`,
+          title: title,
+          description: `Suscripción mensual al ${title}`,
           category_id: "services",
           quantity: 1,
-          unit_price: 97,
+          unit_price: price,
           currency_id: "USD",
         },
       ],
