@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AgentFormProps {
   onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at' | 'deleted_at'>) => Promise<void>;
@@ -37,6 +38,22 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [status, setStatus] = useState("active");
   const [model, setModel] = useState("mistralai/mistral-7b-instruct");
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        setUserRole(profile?.role || 'user');
+      }
+    };
+    fetchUserRole();
+  }, []);
   
   useEffect(() => {
     if (initialData) {
@@ -120,17 +137,19 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
         </div>
       </div>
 
-      <div className="pt-6 border-t border-white/10">
-        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Integración con Webhook</h3>
-        <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para una lógica personalizada.</p>
-        <div>
-          <Label htmlFor="webhookUrl" className="text-white">Webhook URL</Label>
-          <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-webhook.com/endpoint" className="bg-black/20 border-white/20 text-white mt-2" />
-          <p className="text-xs text-gray-400 mt-2">
-            Si completas este campo, el agente enviará los datos a esta URL en lugar de usar el modelo de IA interno.
-          </p>
+      {userRole === 'admin' && (
+        <div className="pt-6 border-t border-white/10">
+          <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Integración con Webhook</h3>
+          <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para una lógica personalizada.</p>
+          <div>
+            <Label htmlFor="webhookUrl" className="text-white">Webhook URL</Label>
+            <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-webhook.com/endpoint" className="bg-black/20 border-white/20 text-white mt-2" />
+            <p className="text-xs text-gray-400 mt-2">
+              Si completas este campo, el agente enviará los datos a esta URL en lugar de usar el modelo de IA interno.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="pt-6 border-t border-white/10">
         <h3 className="text-xl font-semibold text-white mb-2">Personalización del Widget</h3>
