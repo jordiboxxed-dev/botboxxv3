@@ -19,7 +19,7 @@ interface RoiData {
   activity: { date: string; conversations: number; conversions: number }[];
 }
 
-const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: string | number; icon: React.ReactNode; tooltipText: string }) => {
+const StatCard = ({ title, value, icon, tooltipText, valueClassName }: { title: string; value: string | number; icon: React.ReactNode; tooltipText: string; valueClassName?: string }) => {
   const cardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.2)" });
 
   return (
@@ -44,7 +44,7 @@ const StatCard = ({ title, value, icon, tooltipText }: { title: string; value: s
         </TooltipProvider>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
+        <div className={cn("text-3xl font-bold", valueClassName)}>{value}</div>
       </CardContent>
     </Card>
   );
@@ -173,6 +173,7 @@ export const RoiDashboard = () => {
               value={`${stats.timeSavedMinutes} min`} 
               icon={<Clock className="h-5 w-5 text-gray-400" />}
               tooltipText="Estimación de tiempo ahorrado al automatizar respuestas. Calculado en base a 2.5 minutos por interacción."
+              valueClassName="text-green-400"
             />
           </motion.div>
           <motion.div custom={4} variants={cardVariants}>
@@ -181,6 +182,7 @@ export const RoiDashboard = () => {
               value={`$${stats.costSavedUSD}`} 
               icon={<DollarSign className="h-5 w-5 text-gray-400" />}
               tooltipText="Estimación del ahorro en costes de personal. Calculado en base a una tarifa promedio de $15/hora."
+              valueClassName="text-green-400"
             />
           </motion.div>
         </div>
