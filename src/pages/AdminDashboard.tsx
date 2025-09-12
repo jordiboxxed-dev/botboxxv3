@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface UserStat {
   id: string;
@@ -40,14 +41,14 @@ interface AnalyticsData {
   usersWithStats: UserStat[];
 }
 
-const StatCard = ({ title, value, icon }: { title: string; value: string | number; icon: React.ReactNode }) => (
+const StatCard = ({ title, value, icon, valueClassName }: { title: string; value: string | number; icon: React.ReactNode; valueClassName?: string }) => (
   <Card className="bg-black/30 border-white/10 text-white">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
       {icon}
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className={cn("text-2xl font-bold", valueClassName)}>{value}</div>
     </CardContent>
   </Card>
 );
@@ -127,8 +128,8 @@ const AdminDashboard = () => {
           <StatCard title="Total de Usuarios" value={data.totalUsers} icon={<Users className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Total de Agentes" value={data.totalAgents} icon={<Bot className="h-4 w-4 text-gray-400" />} />
           <StatCard title="Total de Mensajes" value={data.totalMessages} icon={<MessageSquare className="h-4 w-4 text-gray-400" />} />
-          <StatCard title="Tiempo Ahorrado" value={`${data.totalTimeSaved} min`} icon={<Clock className="h-4 w-4 text-green-400" />} />
-          <StatCard title="Coste Ahorrado (USD)" value={`$${data.totalCostSaved}`} icon={<DollarSign className="h-4 w-4 text-green-400" />} />
+          <StatCard title="Tiempo Ahorrado" value={`${data.totalTimeSaved} min`} icon={<Clock className="h-4 w-4 text-green-400" />} valueClassName="text-green-400" />
+          <StatCard title="Coste Ahorrado (USD)" value={`$${data.totalCostSaved}`} icon={<DollarSign className="h-4 w-4 text-green-400" />} valueClassName="text-green-400" />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -142,35 +143,37 @@ const AdminDashboard = () => {
                 <CardTitle>Usuarios Registrados</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/20 hover:bg-transparent">
-                      <TableHead className="text-gray-200">Nombre</TableHead>
-                      <TableHead className="text-gray-200">Email</TableHead>
-                      <TableHead className="text-gray-200">Registro</TableHead>
-                      <TableHead className="text-gray-200 text-right">Agentes</TableHead>
-                      <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
-                      <TableHead className="text-gray-200 text-right">Tiempo Ahorrado</TableHead>
-                      <TableHead className="text-gray-200 text-right">Coste Ahorrado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.usersWithStats.map((user) => {
-                      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                      return (
-                        <TableRow key={user.id} className="border-white/10">
-                          <TableCell className="font-medium text-gray-100">{fullName || 'N/A'}</TableCell>
-                          <TableCell className="text-gray-300">{user.email}</TableCell>
-                          <TableCell className="text-gray-300">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
-                          <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
-                          <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
-                          <TableCell className="text-right text-green-400">{user.time_saved} min</TableCell>
-                          <TableCell className="text-right text-green-400">${user.cost_saved}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20 hover:bg-transparent">
+                        <TableHead className="text-gray-200">Nombre</TableHead>
+                        <TableHead className="text-gray-200">Email</TableHead>
+                        <TableHead className="text-gray-200">Registro</TableHead>
+                        <TableHead className="text-gray-200 text-right">Agentes</TableHead>
+                        <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
+                        <TableHead className="text-gray-200 text-right">Tiempo Ahorrado</TableHead>
+                        <TableHead className="text-gray-200 text-right">Coste Ahorrado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.usersWithStats.map((user) => {
+                        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                        return (
+                          <TableRow key={user.id} className="border-white/10">
+                            <TableCell className="font-medium text-gray-100 whitespace-nowrap">{fullName || 'N/A'}</TableCell>
+                            <TableCell className="text-gray-300">{user.email}</TableCell>
+                            <TableCell className="text-gray-300 whitespace-nowrap">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
+                            <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
+                            <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+                            <TableCell className="text-right text-green-400">{user.time_saved} min</TableCell>
+                            <TableCell className="text-right text-green-400">${user.cost_saved}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -187,37 +190,39 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/20 hover:bg-transparent">
-                      <TableHead className="text-gray-200">Nombre</TableHead>
-                      <TableHead className="text-gray-200">Email</TableHead>
-                      <TableHead className="text-gray-200 text-right">Fecha de Suscripción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subscribedUsers.length > 0 ? (
-                      subscribedUsers.map((user) => {
-                        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                        return (
-                          <TableRow key={user.id} className="border-white/10">
-                            <TableCell className="font-medium text-gray-100">{fullName || 'N/A'}</TableCell>
-                            <TableCell className="text-gray-300">{user.email}</TableCell>
-                            <TableCell className="text-right text-gray-300">
-                              {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-gray-500 py-8">
-                          No hay suscripciones recientes.
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20 hover:bg-transparent">
+                        <TableHead className="text-gray-200">Nombre</TableHead>
+                        <TableHead className="text-gray-200">Email</TableHead>
+                        <TableHead className="text-gray-200 text-right">Fecha de Suscripción</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {subscribedUsers.length > 0 ? (
+                        subscribedUsers.map((user) => {
+                          const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                          return (
+                            <TableRow key={user.id} className="border-white/10">
+                              <TableCell className="font-medium text-gray-100 whitespace-nowrap">{fullName || 'N/A'}</TableCell>
+                              <TableCell className="text-gray-300">{user.email}</TableCell>
+                              <TableCell className="text-right text-gray-300 whitespace-nowrap">
+                                {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                            No hay suscripciones recientes.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
