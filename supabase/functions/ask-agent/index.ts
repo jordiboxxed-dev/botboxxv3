@@ -9,6 +9,92 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// --- Helper para Google Calendar ---
+async function getCalendarEvents(userId, supabaseAdmin) {
+  try {
+    const { data: creds, error: credsError } = await supabaseAdmin
+      .from("user_credentials")
+      .select("access_token, refresh_token, expires_at")
+      .eq("user_id", userId)
+      .eq("service", "google_calendar")
+      .single();
+
+    if (credsError || !creds) {
+      return "El usuario no ha conectado su Google Calendar.";
+    }
+
+    let { access_token, refresh_token, expires_at } = creds;
+
+    // Refresh token si es necesario
+    if (new Date(expires_at) < new Date()) {
+      const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
+      const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+      
+      const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: googleClientId,
+          client_secret: googleClientSecret,
+          refresh_token: refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      const newTokens = await refreshResponse.json();
+      if (newTokens.error) {
+        console.error("Error refreshing token:", newTokens.error_description);
+        return "Error al refrescar la conexión con Google Calendar.";
+      }
+
+      access_token = newTokens.access_token;
+      const new_expires_at = new Date(Date.now() + newTokens.expires_in * 1000).toISOString();
+
+      await supabaseAdmin
+        .from("user_credentials")
+        .update({ access_token: access_token, expires_at: new_expires_at })
+        .eq("user_id", userId)
+        .eq("service", "google_calendar");
+    }
+
+    // Fetch events
+    const timeMin = new Date().toISOString();
+    const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Próximos 7 días
+    
+    const calendarApiUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
+    calendarApiUrl.searchParams.set("timeMin", timeMin);
+    calendarApiUrl.searchParams.set("timeMax", timeMax);
+    calendarApiUrl.searchParams.set("singleEvents", "true");
+    calendarApiUrl.searchParams.set("orderBy", "startTime");
+    calendarApiUrl.searchParams.set("maxResults", "15");
+
+    const eventsResponse = await fetch(calendarApiUrl.toString(), {
+      headers: { "Authorization": `Bearer ${access_token}` },
+    });
+
+    if (!eventsResponse.ok) {
+      const errorData = await eventsResponse.json();
+      console.error("Google Calendar API error:", errorData);
+      return `Error al obtener eventos del calendario: ${errorData.error.message}`;
+    }
+
+    const eventsData = await eventsResponse.json();
+    if (!eventsData.items || eventsData.items.length === 0) {
+      return "No hay eventos próximos en el calendario para los siguientes 7 días.";
+    }
+
+    return "Eventos del calendario para los próximos 7 días:\n" + eventsData.items.map(event => {
+      const start = event.start.dateTime || event.start.date;
+      return `- ${event.summary} (Inicio: ${new Date(start).toLocaleString('es-ES')})`;
+    }).join("\n");
+
+  } catch (error) {
+    console.error("Error in getCalendarEvents:", error);
+    return "Ocurrió un error inesperado al intentar acceder a Google Calendar.";
+  }
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -65,7 +151,7 @@ serve(async (req) => {
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
-    let context = "No se encontró información relevante en la base de conocimiento.";
+    let knowledgeContext = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
       const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
@@ -76,9 +162,12 @@ serve(async (req) => {
       });
       if (matchError) throw matchError;
       if (chunks && chunks.length > 0) {
-        context = chunks.map(c => c.content).join("\n\n---\n\n");
+        knowledgeContext = chunks.map(c => c.content).join("\n\n---\n\n");
       }
     }
+
+    // --- Obtener Contexto de Herramientas (Google Calendar) ---
+    const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
 
     // --- Lógica Condicional: Webhook o IA Interna ---
     let responseStream;
@@ -92,7 +181,10 @@ serve(async (req) => {
           agentId,
           prompt,
           history: (history || []).slice(-4),
-          context,
+          context: knowledgeContext,
+          tools_output: {
+            google_calendar: calendarContext
+          }
         }),
       });
 
@@ -125,17 +217,25 @@ serve(async (req) => {
       const personalityPrompt = agentData.system_prompt || "Eres un asistente de IA servicial.";
       const companyName = agentData.company_name || "la empresa";
       const finalSystemPrompt = `
-Eres un agente de inteligencia artificial especializado en proporcionar respuestas precisas basadas en una base de conocimiento específica. Tu comportamiento está definido por las siguientes reglas inquebrantables:
+Eres un agente de inteligencia artificial especializado. Tu comportamiento está definido por las siguientes reglas:
 1.  **Identidad y Personalidad:**
     *   Tu nombre es un agente de ${companyName}.
     *   Adopta la siguiente personalidad: ${personalityPrompt}
 2.  **Proceso de Respuesta (Reglas Obligatorias):**
-    *   **PASO 1:** Busca en la "BASE DE CONOCIMIENTO" proporcionada cualquier información relevante a la pregunta del usuario.
-    *   **PASO 2:** Si encuentras información, formula una respuesta basada ÚNICAMENTE en esa información. Si no, tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema en mi base de conocimiento."
-### BASE DE CONOCIMIENTO ###
+    *   **PASO 1:** Revisa la "INFORMACIÓN DE HERRAMIENTAS" y la "BASE DE CONOCIMIENTO" para encontrar datos relevantes a la pregunta del usuario.
+    *   **PASO 2:** Formula una respuesta ÚNICAMENTE con la información encontrada. Si no encuentras nada relevante, tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema."
+
+### INFORMACIÓN DE HERRAMIENTAS (DATOS EN TIEMPO REAL) ###
 ---
-${context}
+[Google Calendar]
+${calendarContext}
 ---
+
+### BASE DE CONOCIMIENTO (DATOS ESTÁTICOS) ###
+---
+${knowledgeContext}
+---
+
 ### HISTORIAL DE LA CONVERSACIÓN ###
 ${(history || []).slice(-4).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 ### PREGUNTA DEL USUARIO ###
