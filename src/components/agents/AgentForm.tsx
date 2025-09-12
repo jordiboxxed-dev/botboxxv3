@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUsage } from "@/hooks/useUsage";
 
 interface AgentFormProps {
   onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at' | 'deleted_at'>) => Promise<void>;
@@ -24,8 +25,11 @@ interface AgentFormProps {
   submitButtonText?: string;
 }
 
+const DEFAULT_WEBHOOK_URL = "https://n8n.srv945931.hstgr.cloud/webhook/agente-ventas";
+
 export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText = "Crear Agente" }: AgentFormProps) => {
   const navigate = useNavigate();
+  const { usageInfo } = useUsage();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -36,7 +40,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [widgetPosition, setWidgetPosition] = useState("right");
   const [status, setStatus] = useState("active");
   const [model, setModel] = useState("mistralai/mistral-7b-instruct");
-  const [webhookUrl, setWebhookUrl] = useState("https://n8n.srv945931.hstgr.cloud/webhook/agente-ventas");
+  const [webhookUrl, setWebhookUrl] = useState(DEFAULT_WEBHOOK_URL);
   
   useEffect(() => {
     if (initialData) {
@@ -49,11 +53,12 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
       setModel(initialData.model || "mistralai/mistral-7b-instruct");
-      if (initialData.webhook_url !== null && initialData.webhook_url !== undefined) {
-        setWebhookUrl(initialData.webhook_url);
+      // Solo el admin puede ver y cambiar el webhook, así que solo para él cargamos el valor guardado.
+      if (usageInfo?.role === 'admin') {
+        setWebhookUrl(initialData.webhook_url || DEFAULT_WEBHOOK_URL);
       }
     }
-  }, [initialData]);
+  }, [initialData, usageInfo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +70,9 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       showError("Las Instrucciones Base son obligatorias para definir el comportamiento del agente.");
       return;
     }
+
+    const finalWebhookUrl = usageInfo?.role === 'admin' ? webhookUrl : DEFAULT_WEBHOOK_URL;
+
     await onSubmit({ 
       name, 
       description, 
@@ -75,7 +83,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       widget_position: widgetPosition,
       status,
       model,
-      webhook_url: webhookUrl,
+      webhook_url: finalWebhookUrl,
     });
   };
 
@@ -122,17 +130,19 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
         </div>
       </div>
 
-      <div className="pt-6 border-t border-white/10">
-        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Webhook de Acciones</h3>
-        <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para ejecutar acciones (ej. crear una cita en Google Calendar).</p>
-        <div>
-          <Label htmlFor="webhookUrl" className="text-white">Webhook URL (Opcional)</Label>
-          <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-workflow.com/webhook" className="bg-black/20 border-white/20 text-white mt-2" />
-          <p className="text-xs text-gray-400 mt-2">
-            El agente enviará aquí los datos cuando detecte que debe ejecutar una acción que le hayas instruido.
-          </p>
+      {usageInfo?.role === 'admin' && (
+        <div className="pt-6 border-t border-white/10">
+          <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Webhook de Acciones (Admin)</h3>
+          <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para ejecutar acciones (ej. crear una cita en Google Calendar).</p>
+          <div>
+            <Label htmlFor="webhookUrl" className="text-white">Webhook URL</Label>
+            <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-workflow.com/webhook" className="bg-black/20 border-white/20 text-white mt-2" />
+            <p className="text-xs text-gray-400 mt-2">
+              El agente enviará aquí los datos cuando detecte que debe ejecutar una acción que le hayas instruido.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="pt-6 border-t border-white/10">
         <h3 className="text-xl font-semibold text-white mb-2">Personalización del Widget</h3>

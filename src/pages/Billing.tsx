@@ -5,7 +5,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, ArrowLeft, CreditCard } from "lucide-react";
+import { Loader2, ArrowLeft, CreditCard, Zap } from "lucide-react";
 import { useUsage } from "@/hooks/useUsage";
 
 const Billing = () => {
@@ -20,7 +20,7 @@ const Billing = () => {
 
     if (status) {
       if (status === 'success') {
-        showSuccess("¡Pago exitoso! Tu plan ha sido actualizado a Premium.");
+        showSuccess("¡Pago exitoso! Tu plan ha sido actualizado.");
         refreshUsage();
       } else if (status === 'failure') {
         showError("El pago falló. Por favor, intenta de nuevo o contacta a soporte.");
@@ -36,105 +36,27 @@ const Billing = () => {
     setIsProcessing(true);
     
     try {
-      // Verificar autenticación
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error("Auth error:", authError);
-        throw new Error("Error de autenticación.");
-      }
-      
-      if (!user) {
-        showError("Debes iniciar sesión para suscribirte.");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) {
+        showError("Usuario no válido o sin email. Por favor, inicia sesión de nuevo.");
         setIsProcessing(false);
         return;
       }
   
-      // Validar email del usuario
-      if (!user.email) {
-        showError("Tu cuenta no tiene un email asociado. Contacta soporte.");
-        setIsProcessing(false);
-        return;
-      }
+      const { data, error: invokeError } = await supabase.functions.invoke('create-mercadopago-preference', {
+        body: { userId: user.id, plan, userEmail: user.email }
+      });
   
-      console.log("Invoking MercadoPago preference creation...");
-      console.log("User ID:", user.id);
-      console.log("User Email:", user.email);
-      console.log("Plan:", plan);
+      if (invokeError) throw invokeError;
+      if (!data || data.error) throw new Error(data?.error || "No se pudo generar la preferencia de pago.");
   
-      // Invocar la función de Edge con timeout
-      const { data, error: invokeError } = await Promise.race([
-        supabase.functions.invoke('create-mercadopago-preference', {
-          body: {
-            userId: user.id,
-            plan,
-            userEmail: user.email,
-          }
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout: La operación tardó demasiado")), 30000)
-        )
-      ]) as any;
-  
-      // Manejar errores de la invocación
-      if (invokeError) {
-        console.error("Invoke error:", invokeError);
-        throw invokeError;
-      }
-  
-      console.log("Function response:", data);
-  
-      // Validar respuesta
-      if (!data) {
-        throw new Error("No se recibió respuesta del servidor.");
-      }
-  
-      // Extraer datos de la respuesta
-      const { preferenceId, error: preferenceError, initPoint } = data;
+      const { initPoint } = data;
+      if (!initPoint) throw new Error("No se recibió la URL de pago.");
       
-      if (preferenceError) {
-        console.error("Preference error:", preferenceError);
-        throw new Error(preferenceError);
-      }
-  
-      if (!preferenceId) {
-        console.error("No preference ID received:", data);
-        throw new Error("No se pudo generar la preferencia de pago.");
-      }
-  
-      console.log("Preference created successfully:", preferenceId);
-      
-      // Redirigir a MercadoPago
-      // Usar initPoint si está disponible, sino construir la URL
-      const redirectUrl = initPoint || `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`;
-      
-      console.log("Redirecting to:", redirectUrl);
-      window.location.href = redirectUrl;
+      window.location.href = initPoint;
   
     } catch (error: any) {
-      console.error("Error creating subscription:", error);
-      
-      let errorMessage = "Ocurrió un error desconocido.";
-      
-      // Manejar diferentes tipos de errores
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.context?.json?.error) {
-        errorMessage = error.context.json.error;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      // Errores específicos comunes
-      if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
-        errorMessage = "La operación tardó demasiado. Intenta nuevamente.";
-      } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
-        errorMessage = "Error de conexión. Verifica tu internet e intenta nuevamente.";
-      } else if (errorMessage.includes("unauthorized") || errorMessage.includes("auth")) {
-        errorMessage = "Error de autenticación. Inicia sesión nuevamente.";
-      }
-      
-      showError("Error al procesar la suscripción: " + errorMessage);
+      showError("Error al procesar la suscripción: " + (error.message || "Ocurrió un error desconocido."));
       setIsProcessing(false);
     }
   };
@@ -142,7 +64,7 @@ const Billing = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
             <Skeleton className="h-10 w-10" />
             <Skeleton className="h-8 w-48" />
@@ -184,7 +106,7 @@ const Billing = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white">Facturación</h1>
@@ -201,145 +123,86 @@ const Billing = () => {
             <CardTitle className="text-white">Plan Actual</CardTitle>
             <CardDescription className="text-gray-400">
               {isTrialActive && trialDaysLeft !== null ? (
-                <span>
-                  Estás en período de prueba. Te quedan {trialDaysLeft} {trialDaysLeft === 1 ? 'día' : 'días'}.
-                </span>
+                <span>Estás en período de prueba. Te quedan {trialDaysLeft} {trialDaysLeft === 1 ? 'día' : 'días'}.</span>
               ) : plan === 'admin' ? (
                 <span>Plan administrador con acceso ilimitado.</span>
               ) : (
-                <span>Tu plan actual es {plan}.</span>
+                <span>Tu plan actual es <span className="font-semibold capitalize">{plan}</span>.</span>
               )}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-semibold text-white capitalize">
-                  {plan === 'admin' ? 'Administrador' : plan}
-                </h3>
-              </div>
-              {plan !== 'admin' && plan !== 'premium' && (
-                <Button 
-                  onClick={() => handleSubscribe('premium')} 
-                  disabled={isProcessing}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Procesando...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Actualizar a Premium
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Plan Gratuito */}
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
               <CardTitle className="text-white">Plan Gratuito</CardTitle>
-              <CardDescription className="text-gray-400">Para probar la plataforma</CardDescription>
+              <CardDescription className="text-gray-400">Para probar</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">$0<span className="text-lg text-gray-400">/mes</span></div>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  2 agentes
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  150 mensajes/mes
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  Soporte básico
-                </li>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>2 agentes</li>
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>150 mensajes/mes</li>
               </ul>
-              {plan === 'trial' && (
-                <Button variant="outline" className="w-full" disabled>
-                  Plan actual
-                </Button>
-              )}
+              {plan === 'trial' && <Button variant="outline" className="w-full" disabled>Plan actual</Button>}
             </CardContent>
           </Card>
 
+          {/* Plan Pro */}
+          <Card className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border-indigo-500/30">
+            <CardHeader>
+              <CardTitle className="text-white">Plan Pro</CardTitle>
+              <CardDescription className="text-gray-300">Más poder</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white mb-4">$29<span className="text-lg text-gray-300">/mes</span></div>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>5 agentes</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>1,000 mensajes/mes</li>
+                <li className="flex items-center font-semibold text-indigo-300"><Zap className="w-4 h-4 mr-2"/>Herramientas</li>
+              </ul>
+              <Button onClick={() => handleSubscribe('pro')} disabled={isProcessing || plan === 'pro' || plan === 'premium' || plan === 'admin'} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : plan === 'pro' ? "Plan Actual" : "Seleccionar"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Plan Premium */}
           <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30 md:scale-105">
             <CardHeader>
               <CardTitle className="text-white">Plan Premium</CardTitle>
-              <CardDescription className="text-gray-300">Para uso profesional</CardDescription>
+              <CardDescription className="text-gray-300">Uso profesional</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">$97<span className="text-lg text-gray-300">/mes</span></div>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center text-gray-200">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                  Agentes ilimitados
-                </li>
-                <li className="flex items-center text-gray-200">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                  Mensajes ilimitados
-                </li>
-                <li className="flex items-center text-gray-200">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                  Soporte prioritario
-                </li>
-                <li className="flex items-center text-gray-200">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                  Funcionalidades avanzadas
-                </li>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Agentes ilimitados</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Mensajes ilimitados</li>
+                <li className="flex items-center font-semibold text-blue-300"><Zap className="w-4 h-4 mr-2"/>Herramientas</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Soporte prioritario</li>
               </ul>
-              <Button 
-                onClick={() => handleSubscribe('premium')} 
-                disabled={isProcessing || plan === 'admin' || plan === 'premium'}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                {isProcessing ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
-                ) : plan === 'premium' ? (
-                  "Plan Actual"
-                ) : (
-                  "Seleccionar plan"
-                )}
+              <Button onClick={() => handleSubscribe('premium')} disabled={isProcessing || plan === 'premium' || plan === 'admin'} className="w-full bg-blue-600 hover:bg-blue-700">
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : plan === 'premium' ? "Plan Actual" : "Seleccionar"}
               </Button>
             </CardContent>
           </Card>
 
+          {/* Plan Empresarial */}
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Plan Empresarial</CardTitle>
-              <CardDescription className="text-gray-400">Para equipos grandes</CardDescription>
+              <CardTitle className="text-white">Empresarial</CardTitle>
+              <CardDescription className="text-gray-400">Para equipos</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">Personalizado</div>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                  Todo lo del plan Premium
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                  Integraciones personalizadas
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                  Asistencia dedicada
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                  SLA garantizado
-                </li>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>Todo lo de Premium</li>
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>Integraciones a medida</li>
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>Asistencia dedicada</li>
               </ul>
-              <Button variant="outline" className="w-full" disabled>
-                Contactar ventas
-              </Button>
+              <Button variant="outline" className="w-full" disabled>Contactar</Button>
             </CardContent>
           </Card>
         </div>

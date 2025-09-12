@@ -14,6 +14,8 @@ import { EmbedDialog } from "@/components/agents/EmbedDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConversationHistory } from "@/components/agents/ConversationHistory";
 import { ToolManager } from "@/components/tools/ToolManager";
+import { useUsage } from "@/hooks/useUsage";
+import { cn } from "@/lib/utils";
 
 type Agent = DbAgent | MockAgent;
 
@@ -34,6 +36,10 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [isEmbedDialogOpen, setIsEmbedDialogOpen] = useState(false);
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const { usageInfo } = useUsage();
+
+  const plansWithTools = ['pro', 'premium', 'admin'];
+  const canUseTools = usageInfo && (plansWithTools.includes(usageInfo.plan) || usageInfo.role === 'admin');
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -222,17 +228,19 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
             </div>
             <div className="w-full lg:w-96 p-4 lg:p-6 flex flex-col">
               <Tabs defaultValue="knowledge" className="w-full flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className={cn("grid w-full", canUseTools ? "grid-cols-3" : "grid-cols-2")}>
                   <TabsTrigger value="knowledge"><BookOpen className="w-4 h-4 mr-2" />Conocimiento</TabsTrigger>
-                  <TabsTrigger value="tools"><Zap className="w-4 h-4 mr-2" />Herramientas</TabsTrigger>
+                  {canUseTools && <TabsTrigger value="tools"><Zap className="w-4 h-4 mr-2" />Herramientas</TabsTrigger>}
                   <TabsTrigger value="conversations"><MessageCircle className="w-4 h-4 mr-2" />Conversaciones</TabsTrigger>
                 </TabsList>
                 <TabsContent value="knowledge" className="flex-1 mt-4">
                   <KnowledgeSourceManager agentId={selectedAgent.id} onSourcesChange={setKnowledgeSources} />
                 </TabsContent>
-                <TabsContent value="tools" className="flex-1 mt-4">
-                  <ToolManager />
-                </TabsContent>
+                {canUseTools && (
+                  <TabsContent value="tools" className="flex-1 mt-4">
+                    <ToolManager />
+                  </TabsContent>
+                )}
                 <TabsContent value="conversations" className="flex-1 mt-2">
                    <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-lg border border-white/10 rounded-xl h-full">
                       <ConversationHistory agentId={selectedAgent.id} />
