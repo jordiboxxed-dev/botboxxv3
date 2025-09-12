@@ -30,6 +30,7 @@ serve(async (req) => {
     const siteUrl = Deno.env.get("SITE_URL");
 
     if (!googleClientId || !siteUrl) {
+      console.error("Missing environment variables:", { googleClientId: !!googleClientId, siteUrl: !!siteUrl });
       throw new Error("Las variables de entorno GOOGLE_CLIENT_ID y SITE_URL son requeridas.");
     }
 
@@ -39,12 +40,14 @@ serve(async (req) => {
     authUrl.searchParams.set("client_id", googleClientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("response_type", "code");
-    // Simplificamos el scope a uno más general para evitar problemas de formato.
+    // Usamos un scope más estándar y simple. El encoding se maneja automáticamente por URLSearchParams.
     authUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar.readonly");
-    authUrl.searchParams.set("access_type", "offline");
-    authUrl.searchParams.set("prompt", "consent");
+    authUrl.searchParams.set("access_type", "offline"); // Muy importante para obtener el refresh_token
+    authUrl.searchParams.set("prompt", "consent");     // Muy importante para forzar que nos den el refresh_token
     authUrl.searchParams.set("state", user.id); // Pasamos el user_id en el state para recuperarlo en el callback
 
+    console.log("Generated Google Auth URL:", authUrl.toString());
+    
     return new Response(JSON.stringify({ authUrl: authUrl.toString() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

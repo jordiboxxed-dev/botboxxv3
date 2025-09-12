@@ -23,7 +23,7 @@ export const GoogleCalendarTool = () => {
       .select("id")
       .eq("user_id", user.id)
       .eq("service", "google_calendar")
-      .single();
+      .maybeSingle(); // maybeSingle es más robusto si no hay resultados
 
     if (data && !error) {
       setIsConnected(true);
@@ -43,6 +43,7 @@ export const GoogleCalendarTool = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No estás autenticado.");
 
+      console.log("Fetching auth URL from backend...");
       const response = await fetch(`${SUPABASE_URL}/functions/v1/google-auth-start`, {
         method: 'GET',
         headers: {
@@ -53,7 +54,8 @@ export const GoogleCalendarTool = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "No se pudo obtener la URL de autenticación.");
+        console.error("Backend error response:", errorData);
+        throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
       }
 
       const { authUrl } = await response.json();
@@ -61,9 +63,11 @@ export const GoogleCalendarTool = () => {
         throw new Error("La respuesta del servidor no contenía una URL de autenticación.");
       }
 
+      console.log("Redirecting to Google Auth URL...");
       window.location.href = authUrl;
 
     } catch (error) {
+      console.error("Frontend error during connect:", error);
       showError("Error al iniciar la conexión: " + (error as Error).message);
       setIsProcessing(false);
     }
@@ -104,7 +108,7 @@ export const GoogleCalendarTool = () => {
         </div>
         <div>
           <h4 className="font-semibold text-white">Google Calendar</h4>
-          <p className="text-sm text-gray-400">Permite al agente leer tus eventos.</p>
+          <p className="text-sm text-gray-400">Permite al agente leer tus eventos próximos.</p>
         </div>
       </div>
       <div>

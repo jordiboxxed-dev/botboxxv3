@@ -6,7 +6,9 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const userId = url.searchParams.get("state");
+    const userId = url.searchParams.get("state"); // Recuperamos el user_id
+
+    console.log("Received callback with code and state:", { code: !!code, userId });
 
     if (!code || !userId) {
       throw new Error("Faltan el código de autorización o el state (user ID).");
@@ -18,7 +20,12 @@ serve(async (req) => {
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-auth-callback`;
 
     if (!googleClientId || !googleClientSecret || !siteUrl) {
-      throw new Error("Faltan variables de entorno de Google.");
+        console.error("Missing environment variables in callback:", { 
+            googleClientId: !!googleClientId, 
+            googleClientSecret: !!googleClientSecret, 
+            siteUrl: !!siteUrl 
+        });
+      throw new Error("Faltan variables de entorno de Google o SITE_URL.");
     }
 
     // Intercambiar código por tokens
@@ -35,11 +42,19 @@ serve(async (req) => {
     });
 
     const tokens = await tokenResponse.json();
+    console.log("Tokens received from Google:", tokens);
     if (tokens.error) {
+      console.error("Error getting tokens from Google:", tokens.error_description);
       throw new Error(`Error al obtener tokens: ${tokens.error_description}`);
     }
 
     const { access_token, refresh_token, expires_in } = tokens;
+    // Google OAuth puede no devolver siempre un refresh_token si ya existe uno y no se forzó `prompt=consent`.
+    // Pero como lo forzamos en `google-auth-start`, debería estar aquí.
+    if (!refresh_token) {
+        console.warn("Warning: No refresh_token received. This might cause issues later.");
+        // Podríamos redirigir con un mensaje de advertencia si es crítico.
+    }
     const expires_at = new Date(Date.now() + expires_in * 1000).toISOString();
 
     // Guardar credenciales en Supabase
@@ -51,23 +66,26 @@ serve(async (req) => {
     const { error: upsertError } = await supabaseAdmin
       .from("user_credentials")
       .upsert({
-        user_id: userId,
+        user_id: userId, // Usamos el userId del state
         service: "google_calendar",
         access_token,
-        refresh_token,
+        refresh_token, // Puede ser null
         expires_at,
       }, { onConflict: 'user_id, service' });
 
     if (upsertError) {
+        console.error("Error upserting credentials to Supabase:", upsertError);
       throw upsertError;
     }
+    console.log("Credentials successfully saved to Supabase for user:", userId);
 
-    // Redirigir de vuelta a la aplicación
+    // Redirigir de vuelta a la aplicación con éxito
     return Response.redirect(`${siteUrl}/dashboard?google_auth=success`, 302);
 
   } catch (error) {
     console.error("Error in google-auth-callback:", error);
     const siteUrl = Deno.env.get("SITE_URL") || "/";
+    // Redirigir de vuelta a la aplicación con error
     return Response.redirect(`${siteUrl}/dashboard?google_auth=error&message=${encodeURIComponent(error.message)}`, 302);
   }
 });
