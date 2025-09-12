@@ -70,8 +70,8 @@ serve(async (req) => {
       const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.5,
-        match_count: 10,
+        match_threshold: 0.3,
+        match_count: 15,
         source_ids: sourceIds
       });
       if (matchError) throw matchError;
