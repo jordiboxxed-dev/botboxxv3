@@ -61,8 +61,8 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       showError("El nombre del agente es obligatorio.");
       return;
     }
-    if (!systemPrompt && !webhookUrl) {
-      showError("Debes proporcionar Instrucciones Base o una URL de Webhook.");
+    if (!systemPrompt) {
+      showError("Las Instrucciones Base son obligatorias para definir el comportamiento del agente.");
       return;
     }
     await onSubmit({ 
@@ -102,7 +102,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
             <Label htmlFor="systemPrompt" className="text-white">Instrucciones Base / Personalidad</Label>
             <Textarea id="systemPrompt" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Ej: Eres un asistente amigable y servicial. Tu objetivo es..." className="bg-black/20 border-white/20 text-white mt-2 min-h-[120px]" />
             <p className="text-xs text-gray-400 mt-2">
-              Define el comportamiento del agente. Se ignora si se usa un Webhook.
+              Define el comportamiento del agente. Aquí le indicarás cómo y cuándo usar herramientas como el calendario.
             </p>
           </div>
           <div>
@@ -116,20 +116,20 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-400 mt-2">
-              Elige el motor de IA. Se ignora si se usa un Webhook.
+              Elige el motor de IA que procesará las instrucciones y el contexto.
             </p>
           </div>
         </div>
       </div>
 
       <div className="pt-6 border-t border-white/10">
-        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Integración con Webhook</h3>
-        <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para una lógica personalizada.</p>
+        <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-400"/> Webhook de Acciones</h3>
+        <p className="text-gray-400 mb-4">Conecta tu agente a un servicio externo como n8n o Zapier para ejecutar acciones (ej. crear una cita en Google Calendar).</p>
         <div>
-          <Label htmlFor="webhookUrl" className="text-white">Webhook URL</Label>
-          <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-webhook.com/endpoint" className="bg-black/20 border-white/20 text-white mt-2" />
+          <Label htmlFor="webhookUrl" className="text-white">Webhook URL (Opcional)</Label>
+          <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://tu-workflow.com/webhook" className="bg-black/20 border-white/20 text-white mt-2" />
           <p className="text-xs text-gray-400 mt-2">
-            Si completas este campo, el agente enviará los datos a esta URL en lugar de usar el modelo de IA interno.
+            El agente enviará aquí los datos cuando detecte que debe ejecutar una acción que le hayas instruido.
           </p>
         </div>
       </div>

@@ -169,61 +169,21 @@ serve(async (req) => {
     // --- Obtener Contexto de Herramientas (Google Calendar) ---
     const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
 
-    // --- Lógica Condicional: Webhook o IA Interna ---
-    let responseStream;
+    // --- Lógica de IA (OpenRouter) ---
+    const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no está configurada.");
 
-    if (agentData.webhook_url) {
-      // --- Lógica de Webhook ---
-      const webhookResponse = await fetch(agentData.webhook_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId,
-          prompt,
-          history: (history || []).slice(-4),
-          context: knowledgeContext,
-          tools_output: {
-            google_calendar: calendarContext
-          }
-        }),
-      });
-
-      if (!webhookResponse.ok) {
-        const errorBody = await webhookResponse.text();
-        console.error("Webhook error response:", errorBody);
-        throw new Error(`El webhook devolvió un error: ${webhookResponse.statusText}`);
-      }
-      
-      const webhookJson = await webhookResponse.json();
-      const responseText = webhookJson.output;
-
-      if (typeof responseText !== 'string') {
-        throw new Error("La respuesta del webhook no contenía un campo 'output' de tipo texto.");
-      }
-
-      // Convertir el texto final en un stream para que coincida con el formato esperado
-      responseStream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(responseText));
-          controller.close();
-        }
-      });
-
-    } else {
-      // --- Lógica de IA Interna (OpenRouter) ---
-      const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
-      if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no está configurada.");
-
-      const personalityPrompt = agentData.system_prompt || "Eres un asistente de IA servicial.";
-      const companyName = agentData.company_name || "la empresa";
-      const finalSystemPrompt = `
+    const personalityPrompt = agentData.system_prompt || "Eres un asistente de IA servicial.";
+    const companyName = agentData.company_name || "la empresa";
+    const finalSystemPrompt = `
 Eres un agente de inteligencia artificial especializado. Tu comportamiento está definido por las siguientes reglas:
 1.  **Identidad y Personalidad:**
     *   Tu nombre es un agente de ${companyName}.
     *   Adopta la siguiente personalidad: ${personalityPrompt}
 2.  **Proceso de Respuesta (Reglas Obligatorias):**
     *   **PASO 1:** Revisa la "INFORMACIÓN DE HERRAMIENTAS" y la "BASE DE CONOCIMIENTO" para encontrar datos relevantes a la pregunta del usuario.
-    *   **PASO 2:** Formula una respuesta ÚNICAMENTE con la información encontrada. Si no encuentras nada relevante, tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema."
+    *   **PASO 2:** Si la pregunta del usuario implica crear o agendar un evento, tu ÚNICA respuesta debe ser un objeto JSON con el formato: {"tool": "create_calendar_event", "params": {"title": "...", "startTime": "YYYY-MM-DDTHH:MM:SS", "endTime": "YYYY-MM-DDTHH:MM:SS", "attendees": ["email@example.com"]}}. No incluyas ningún otro texto.
+    *   **PASO 3:** Si la pregunta NO implica crear un evento, formula una respuesta conversacional basándote ÚNICAMENTE en la información encontrada. Si no encuentras nada relevante, tu única respuesta permitida es: "Lo siento, no tengo información sobre ese tema."
 
 ### INFORMACIÓN DE HERRAMIENTAS (DATOS EN TIEMPO REAL) ###
 ---
@@ -240,31 +200,75 @@ ${knowledgeContext}
 ${(history || []).slice(-4).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 ### PREGUNTA DEL USUARIO ###
 ${prompt}
-### TU RESPUESTA (SOLO EL TEXTO DE LA RESPUESTA) ###
+### TU RESPUESTA (JSON para agendar o texto conversacional) ###
 `;
-      const messages = [{ role: "system", content: finalSystemPrompt }];
+    const messages = [{ role: "system", content: finalSystemPrompt }];
 
-      const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openRouterApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://botboxx-demov2.vercel.app",
-          "X-Title": "BotBoxx"
-        },
-        body: JSON.stringify({
-          model: agentData.model || 'mistralai/mistral-7b-instruct',
-          messages: messages,
-          stream: true,
-          temperature: 0.2,
-        })
-      });
+    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openRouterApiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://botboxx-demov2.vercel.app",
+        "X-Title": "BotBoxx"
+      },
+      body: JSON.stringify({
+        model: agentData.model || 'mistralai/mistral-7b-instruct',
+        messages: messages,
+        stream: false, // No usamos stream para poder procesar la respuesta completa
+        temperature: 0.1,
+      })
+    });
 
-      if (!openRouterResponse.ok) {
-        const errorBody = await openRouterResponse.json();
-        throw new Error(`Error de OpenRouter: ${errorBody.error.message}`);
+    if (!openRouterResponse.ok) {
+      const errorBody = await openRouterResponse.json();
+      throw new Error(`Error de OpenRouter: ${errorBody.error.message}`);
+    }
+
+    const responseJson = await openRouterResponse.json();
+    const responseText = responseJson.choices[0].message.content;
+
+    let finalResponseStream;
+
+    try {
+      const parsedResponse = JSON.parse(responseText);
+      if (parsedResponse.tool === 'create_calendar_event') {
+        if (!agentData.webhook_url) {
+          throw new Error("El agente intentó usar una herramienta, pero no hay una URL de Webhook configurada.");
+        }
+        
+        // Llamar al webhook de n8n/Zapier
+        const webhookResponse = await fetch(agentData.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsedResponse.params)
+        });
+
+        if (!webhookResponse.ok) {
+          throw new Error(`El webhook de acción devolvió un error: ${webhookResponse.statusText}`);
+        }
+
+        const confirmationMessage = "¡Listo! He agendado el evento en tu calendario.";
+        finalResponseStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(confirmationMessage));
+            controller.close();
+          }
+        });
+
+      } else {
+        // Es un JSON pero no una herramienta que conocemos, lo tratamos como texto normal
+        throw new Error("Respuesta JSON no reconocida como herramienta.");
       }
-      responseStream = openRouterResponse.body;
+    } catch (e) {
+      // No es un JSON válido o no es una herramienta, así que es una respuesta de texto normal.
+      // La convertimos en un stream para que el cliente la reciba igual.
+      finalResponseStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(responseText));
+          controller.close();
+        }
+      });
     }
 
     // --- Incrementar contador de mensajes y devolver stream ---
@@ -272,50 +276,8 @@ ${prompt}
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
     }
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = responseStream.getReader();
-        const decoder = new TextDecoder();
-        const encoder = new TextEncoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.substring(6);
-              if (data === '[DONE]') {
-                controller.close();
-                return;
-              }
-              try {
-                const json = JSON.parse(data);
-                const content = json.choices[0]?.delta?.content;
-                if (content) {
-                  controller.enqueue(encoder.encode(content));
-                }
-              } catch (e) {
-                // Si no es un JSON de OpenRouter (ej. stream directo de webhook), lo pasamos tal cual.
-                controller.enqueue(value);
-                break;
-              }
-            } else {
-               // Si no es un evento SSE, pasamos el chunk directamente.
-               controller.enqueue(value);
-               break;
-            }
-          }
-        }
-        controller.close();
-      }
-    });
-
-    return new Response(stream, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    return new Response(finalResponseStream, {
+      headers: { ...corsHeaders, "Content-Type": "text/plain" },
     });
 
   } catch (error) {
