@@ -8,55 +8,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function recursiveChunkText(text, chunkSize = 1000, chunkOverlap = 150, separators = ["\n\n", "\n", ". ", " ", ""]) {
-  if (text.length <= chunkSize) {
-    return [text];
-  }
-
-  const currentSeparator = separators[0];
-  const nextSeparators = separators.slice(1);
-
-  let chunks = [];
-  if (currentSeparator) {
-    const splits = text.split(currentSeparator);
-    let buffer = "";
-    for (const split of splits) {
-      const newBuffer = buffer + (buffer ? currentSeparator : "") + split;
-      if (newBuffer.length > chunkSize) {
-        if (buffer) {
-          const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-          chunks.push(...subChunks);
-        }
-        buffer = split;
-      } else {
-        buffer = newBuffer;
-      }
+// Simplified, non-recursive chunking function
+function chunkText(text, chunkSize = 1000, chunkOverlap = 150) {
+    if (text.length <= chunkSize) {
+        return [text].filter(c => c.trim().length > 10);
     }
-    if (buffer) {
-      const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-      chunks.push(...subChunks);
+    const chunks = [];
+    let i = 0;
+    while (i < text.length) {
+        const end = i + chunkSize;
+        chunks.push(text.slice(i, end));
+        i += chunkSize - chunkOverlap;
     }
-  } else {
-    for (let i = 0; i < text.length; i += chunkSize - chunkOverlap) {
-      chunks.push(text.slice(i, i + chunkSize));
-    }
-  }
-
-  const mergedChunks = [];
-  let currentChunk = "";
-  for (const chunk of chunks) {
-    if ((currentChunk + chunk).length <= chunkSize) {
-      currentChunk += chunk;
-    } else {
-      mergedChunks.push(currentChunk);
-      currentChunk = chunk;
-    }
-  }
-  if (currentChunk) {
-    mergedChunks.push(currentChunk);
-  }
-
-  return mergedChunks.filter(chunk => chunk.trim().length > 10);
+    return chunks.filter(chunk => chunk.trim().length > 10);
 }
 
 serve(async (req) => {
@@ -77,7 +41,7 @@ serve(async (req) => {
     );
 
     // 1. Dividir el texto en fragmentos
-    const chunks = await recursiveChunkText(textContent);
+    const chunks = chunkText(textContent);
 
     if (chunks.length === 0) {
       return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {

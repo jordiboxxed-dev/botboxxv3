@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -235,16 +234,33 @@ serve(async (req) => {
       throw new Error("Este agente no tiene un Webhook de Acciones configurado.");
     }
 
-    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiApiKey) throw new Error("GEMINI_API_KEY no está configurada.");
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no está configurada.");
+
+    const embeddingsResponse = await fetch("https://openrouter.ai/api/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openRouterApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          "model": "openai/text-embedding-ada-002",
+          "input": [prompt]
+        })
+    });
+
+    if (!embeddingsResponse.ok) {
+        const errorBody = await embeddingsResponse.text();
+        throw new Error(`Error from OpenRouter API for embeddings: ${errorBody}`);
+    }
+    
+    const { data: embeddingsData } = await embeddingsResponse.json();
+    const promptEmbedding = embeddingsData[0].embedding;
 
     const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
-    const promptEmbedding = await embeddingModel.embedContent(prompt);
     const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
 
     const webhookPayload = {
@@ -253,7 +269,7 @@ serve(async (req) => {
       prompt: prompt,
       history: history || [],
       context: { calendar: calendarContext },
-      embedding: JSON.stringify(promptEmbedding.embedding.values),
+      embedding: JSON.stringify(promptEmbedding),
       sourceIds: sourceIds
     };
 
