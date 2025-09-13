@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
+import { serve } from "std/http/server.ts";
+import { DOMParser } from "deno-dom";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

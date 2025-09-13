@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
+import { serve } from "std/http/server.ts";
+import { createClient } from '@supabase/supabase-js';
+import { DOMParser } from "deno-dom";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
