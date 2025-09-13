@@ -251,7 +251,7 @@ serve(async (req) => {
         query_embedding: promptEmbedding.embedding.values,
         match_threshold: 0.3,
         match_count: 15,
-        source_ids: sourceIds
+        p_source_ids: sourceIds
       });
       if (matchError) throw matchError;
       if (chunks && chunks.length > 0) {
