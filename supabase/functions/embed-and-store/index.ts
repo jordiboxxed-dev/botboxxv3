@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai@0.11.3";
+import { serve } from "std/http/server.ts";
+import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
