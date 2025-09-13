@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { serve } from "std/http/server.ts";
-import { createClient } from '@supabase/supabase-js';
-import { DOMParser } from "deno-dom";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,16 +33,12 @@ async function scrapeWebsite(startUrl) {
       });
 
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
-        console.log(`Skipping ${currentUrl} - Not HTML or not OK`);
         continue;
       }
 
       const html = await response.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
-      if (!doc) {
-        console.log(`Failed to parse HTML for ${currentUrl}`);
-        continue;
-      }
+      if (!doc) continue;
 
       const pageTitle = doc.querySelector('title')?.textContent || '';
       const mainContent = doc.body?.innerText || '';
@@ -82,18 +78,10 @@ serve(async (req) => {
 
   try {
     const { agentId, url } = await req.json();
-    console.log("Scrape function called with:", { agentId, url });
-    
-    if (!agentId || !url) {
-      console.error("Missing required parameters:", { agentId, url });
-      throw new Error("agentId y url son requeridos.");
-    }
+    if (!agentId || !url) throw new Error("agentId y url son requeridos.");
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("Missing authorization header");
-      throw new Error("Falta el encabezado de autorización.");
-    }
+    if (!authHeader) throw new Error("Falta el encabezado de autorización.");
     
     const token = authHeader.replace('Bearer ', '');
     const supabase = createClient(
@@ -103,10 +91,7 @@ serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error("User authentication error:", userError);
-      throw new Error("Token de usuario inválido.");
-    }
+    if (userError || !user) throw new Error("Token de usuario inválido.");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? '',
@@ -114,8 +99,6 @@ serve(async (req) => {
     );
 
     const sourceName = new URL(url).hostname;
-    console.log("Creating knowledge source:", sourceName);
-    
     const { data: sourceData, error: sourceError } = await supabaseAdmin.from("knowledge_sources").insert({
         user_id: user.id,
         agent_id: agentId,
@@ -123,35 +106,17 @@ serve(async (req) => {
         type: 'website',
     }).select().single();
 
-    if (sourceError) {
-      console.error("Error creating knowledge source:", sourceError);
-      throw sourceError;
-    }
+    if (sourceError) throw sourceError;
 
     // Responder inmediatamente para no causar timeout en el cliente
-    const responsePromise = new Response(JSON.stringify({ message: "El rastreo del sitio web ha comenzado." }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 202, // Accepted
-    });
-
-    // Ejecutar el scraping en segundo plano
     setTimeout(async () => {
       try {
-        console.log(`Starting scrape for ${sourceName}`);
         const fullText = await scrapeWebsite(url);
-        console.log(`Scraped ${fullText.length} characters from ${sourceName}`);
-        
         if (fullText.trim().length > 0) {
-          console.log("Calling embed-and-store function");
-          const { data, error } = await supabaseAdmin.functions.invoke("embed-and-store", {
+          await supabaseAdmin.functions.invoke("embed-and-store", {
             body: { sourceId: sourceData.id, textContent: fullText },
           });
-          
-          if (error) {
-            console.error("Error calling embed-and-store function:", error);
-          } else {
-            console.log("Embed-and-store function response:", data);
-          }
+          console.log(`Scraping and embedding for ${sourceName} completed.`);
         } else {
           console.warn(`No content scraped from ${sourceName}.`);
         }
@@ -160,7 +125,10 @@ serve(async (req) => {
       }
     }, 0);
 
-    return responsePromise;
+    return new Response(JSON.stringify({ message: "El rastreo del sitio web ha comenzado." }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 202, // Accepted
+    });
 
   } catch (error) {
     console.error("Error in scrape-and-embed function:", error);
