@@ -38,22 +38,35 @@ serve(async (req) => {
 
   try {
     const { sourceId, textContent } = await req.json();
+    console.log("Function called with sourceId:", sourceId);
+    
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
-    if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
-    if (!sourceId || !textContent) throw new Error("sourceId y textContent son requeridos.");
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY not configured");
+      throw new Error("GEMINI_API_KEY no está configurada.");
+    }
+    
+    if (!sourceId || !textContent) {
+      console.error("Missing required parameters:", { sourceId, textContent: !!textContent });
+      throw new Error("sourceId y textContent son requeridos.");
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
+    
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
     // 1. Dividir el texto en fragmentos usando el método simple
+    console.log("Starting text chunking...");
     const chunks = simpleChunkText(textContent);
+    console.log(`Generated ${chunks.length} chunks`);
 
     if (chunks.length === 0) {
+      console.log("No content to process");
       return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -64,17 +77,30 @@ serve(async (req) => {
     const BATCH_SIZE = 100; // Límite de Gemini para batchEmbedContents
     const allEmbeddings = [];
 
+    console.log("Generating embeddings...");
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-      const embeddingsResponse = await embeddingModel.batchEmbedContents({
-        requests: batchChunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
-      });
-      allEmbeddings.push(...embeddingsResponse.embeddings);
+      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE)+1}/${Math.ceil(chunks.length/BATCH_SIZE)}`);
+      
+      try {
+        const embeddingsResponse = await embeddingModel.batchEmbedContents({
+          requests: batchChunks.map(chunk => ({ 
+            model: "models/text-embedding-004", 
+            content: { parts: [{ text: chunk }] } 
+          }))
+        });
+        allEmbeddings.push(...embeddingsResponse.embeddings);
+      } catch (batchError) {
+        console.error("Error generating embeddings for batch:", batchError);
+        throw new Error(`Error al generar embeddings: ${batchError.message}`);
+      }
     }
 
     // Verificar que tengamos un embedding por cada chunk
     if (allEmbeddings.length !== chunks.length) {
-      throw new Error(`Inconsistencia en la generación de embeddings. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`);
+      const errorMsg = `Inconsistencia en la generación de embeddings. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const newChunks = chunks.map((chunk, i) => ({
@@ -84,10 +110,16 @@ serve(async (req) => {
     }));
 
     // 3. Guardar los fragmentos y sus embeddings en la base de datos
+    console.log("Saving chunks to database...");
     const { error } = await supabaseAdmin.from("knowledge_chunks").insert(newChunks);
-    if (error) throw error;
+    if (error) {
+      console.error("Database insert error:", error);
+      throw error;
+    }
 
-    return new Response(JSON.stringify({ message: `${chunks.length} fragmentos de conocimiento guardados.` }), {
+    const successMessage = `${chunks.length} fragmentos de conocimiento guardados.`;
+    console.log(successMessage);
+    return new Response(JSON.stringify({ message: successMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
