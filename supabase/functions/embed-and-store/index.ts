@@ -18,7 +18,7 @@ const safetySettings = [
 
 // --- Función de Fragmentación de Texto Sencilla y Robusta ---
 // Divide el texto en fragmentos de un tamaño determinado con superposición.
-function simpleChunkText(text, chunkSize = 1000, chunkOverlap = 150) {
+function simpleChunkText(text, chunkSize = 756, chunkOverlap = 100) {
   const chunks = [];
   if (!text || typeof text !== 'string') return chunks;
 
@@ -28,7 +28,7 @@ function simpleChunkText(text, chunkSize = 1000, chunkOverlap = 150) {
     chunks.push(text.slice(i, end));
     i += chunkSize - chunkOverlap;
   }
-  return chunks.filter(chunk => chunk.trim().length > 10); // Filtrar chunks vacíos o muy cortos
+  return chunks.filter(chunk => chunk.trim().length > 0); // Filtrar chunks vacíos
 }
 
 
