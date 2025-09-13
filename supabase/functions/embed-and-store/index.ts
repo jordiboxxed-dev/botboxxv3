@@ -31,7 +31,6 @@ function simpleChunkText(text, chunkSize = 756, chunkOverlap = 100) {
   return chunks.filter(chunk => chunk.trim().length > 0); // Filtrar chunks vacíos
 }
 
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
