@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai@0.11.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,64 +16,20 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// --- Nueva Función de Fragmentación Recursiva ---
-// Esta función divide el texto de manera más inteligente, intentando mantener la cohesión del contenido.
-async function recursiveChunkText(text, chunkSize = 1000, chunkOverlap = 150, separators = ["\n\n", "\n", ". ", " ", ""]) {
-  if (text.length <= chunkSize) {
-    return [text];
-  }
+// --- Función de Fragmentación de Texto Sencilla y Robusta ---
+// Divide el texto en fragmentos de un tamaño determinado con superposición.
+function simpleChunkText(text, chunkSize = 756, chunkOverlap = 100) {
+  const chunks = [];
+  if (!text || typeof text !== 'string') return chunks;
 
-  // Intenta dividir con el primer separador de la lista.
-  const currentSeparator = separators[0];
-  const nextSeparators = separators.slice(1);
-
-  let chunks = [];
-  if (currentSeparator) {
-    const splits = text.split(currentSeparator);
-    let buffer = "";
-    for (const split of splits) {
-      const newBuffer = buffer + (buffer ? currentSeparator : "") + split;
-      if (newBuffer.length > chunkSize) {
-        // Si el buffer excede el tamaño, lo agregamos como un chunk
-        // y si es muy grande, lo subdividimos recursivamente.
-        if (buffer) {
-          const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-          chunks.push(...subChunks);
-        }
-        buffer = split;
-      } else {
-        buffer = newBuffer;
-      }
-    }
-    if (buffer) {
-      const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-      chunks.push(...subChunks);
-    }
-  } else {
-    // Si no hay más separadores, cortamos por tamaño.
-    for (let i = 0; i < text.length; i += chunkSize - chunkOverlap) {
-      chunks.push(text.slice(i, i + chunkSize));
-    }
+  let i = 0;
+  while (i < text.length) {
+    const end = Math.min(i + chunkSize, text.length);
+    chunks.push(text.slice(i, end));
+    i += chunkSize - chunkOverlap;
   }
-
-  // Unir chunks pequeños para optimizar
-  const mergedChunks = [];
-  let currentChunk = "";
-  for (const chunk of chunks) {
-    if ((currentChunk + chunk).length <= chunkSize) {
-      currentChunk += chunk;
-    } else {
-      mergedChunks.push(currentChunk);
-      currentChunk = chunk;
-    }
-  }
-  if (currentChunk) {
-    mergedChunks.push(currentChunk);
-  }
-
-  return mergedChunks.filter(chunk => chunk.trim().length > 10);
+  return chunks.filter(chunk => chunk.trim().length > 0); // Filtrar chunks vacíos
 }
-
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -82,22 +38,35 @@ serve(async (req) => {
 
   try {
     const { sourceId, textContent } = await req.json();
+    console.log("Function called with sourceId:", sourceId);
+    
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
-    if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
-    if (!sourceId || !textContent) throw new Error("sourceId y textContent son requeridos.");
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY not configured");
+      throw new Error("GEMINI_API_KEY no está configurada.");
+    }
+    
+    if (!sourceId || !textContent) {
+      console.error("Missing required parameters:", { sourceId, textContent: !!textContent });
+      throw new Error("sourceId y textContent son requeridos.");
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
+    
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    // 1. Dividir el texto en fragmentos usando la nueva lógica recursiva
-    const chunks = await recursiveChunkText(textContent);
+    // 1. Dividir el texto en fragmentos usando el método simple
+    console.log("Starting text chunking...");
+    const chunks = simpleChunkText(textContent);
+    console.log(`Generated ${chunks.length} chunks`);
 
     if (chunks.length === 0) {
+      console.log("No content to process");
       return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -105,15 +74,33 @@ serve(async (req) => {
     }
 
     // 2. Generar embeddings para cada fragmento en lotes
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 100; // Límite de Gemini para batchEmbedContents
     const allEmbeddings = [];
 
+    console.log("Generating embeddings...");
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-      const embeddingsResponse = await embeddingModel.batchEmbedContents({
-        requests: batchChunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
-      });
-      allEmbeddings.push(...embeddingsResponse.embeddings);
+      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE)+1}/${Math.ceil(chunks.length/BATCH_SIZE)}`);
+      
+      try {
+        const embeddingsResponse = await embeddingModel.batchEmbedContents({
+          requests: batchChunks.map(chunk => ({ 
+            model: "models/text-embedding-004", 
+            content: { parts: [{ text: chunk }] } 
+          }))
+        });
+        allEmbeddings.push(...embeddingsResponse.embeddings);
+      } catch (batchError) {
+        console.error("Error generating embeddings for batch:", batchError);
+        throw new Error(`Error al generar embeddings: ${batchError.message}`);
+      }
+    }
+
+    // Verificar que tengamos un embedding por cada chunk
+    if (allEmbeddings.length !== chunks.length) {
+      const errorMsg = `Inconsistencia en la generación de embeddings. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const newChunks = chunks.map((chunk, i) => ({
@@ -123,10 +110,16 @@ serve(async (req) => {
     }));
 
     // 3. Guardar los fragmentos y sus embeddings en la base de datos
+    console.log("Saving chunks to database...");
     const { error } = await supabaseAdmin.from("knowledge_chunks").insert(newChunks);
-    if (error) throw error;
+    if (error) {
+      console.error("Database insert error:", error);
+      throw error;
+    }
 
-    return new Response(JSON.stringify({ message: `${chunks.length} fragmentos de conocimiento guardados.` }), {
+    const successMessage = `${chunks.length} fragmentos de conocimiento guardados.`;
+    console.log(successMessage);
+    return new Response(JSON.stringify({ message: successMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
