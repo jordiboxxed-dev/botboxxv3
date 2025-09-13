@@ -244,21 +244,7 @@ serve(async (req) => {
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
-    let knowledgeContext = "No se encontró información relevante en la base de conocimiento.";
-    if (sourceIds.length > 0) {
-      const promptEmbedding = await embeddingModel.embedContent(prompt);
-      const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
-        query_embedding: promptEmbedding.embedding.values,
-        match_threshold: 0.3,
-        match_count: 15,
-        source_ids: sourceIds
-      });
-      if (matchError) throw matchError;
-      if (chunks && chunks.length > 0) {
-        knowledgeContext = chunks.map(c => c.content).join("\n\n---\n\n");
-      }
-    }
-
+    const promptEmbedding = await embeddingModel.embedContent(prompt);
     const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
 
     const webhookPayload = {
@@ -266,7 +252,9 @@ serve(async (req) => {
       user: { id: user.id, email: user.email },
       prompt: prompt,
       history: history || [],
-      context: { knowledge: knowledgeContext, calendar: calendarContext }
+      context: { calendar: calendarContext },
+      embedding: JSON.stringify(promptEmbedding.embedding.values),
+      sourceIds: sourceIds
     };
 
     const webhookResponse = await fetch(agentData.webhook_url, {
