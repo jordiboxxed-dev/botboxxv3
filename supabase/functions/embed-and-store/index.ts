@@ -16,62 +16,19 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// --- Nueva Función de Fragmentación Recursiva ---
-// Esta función divide el texto de manera más inteligente, intentando mantener la cohesión del contenido.
-async function recursiveChunkText(text, chunkSize = 1000, chunkOverlap = 150, separators = ["\n\n", "\n", ". ", " ", ""]) {
-  if (text.length <= chunkSize) {
-    return [text];
-  }
+// --- Función de Fragmentación de Texto Sencilla y Robusta ---
+// Divide el texto en fragmentos de un tamaño determinado con superposición.
+function simpleChunkText(text, chunkSize = 1000, chunkOverlap = 150) {
+  const chunks = [];
+  if (!text || typeof text !== 'string') return chunks;
 
-  // Intenta dividir con el primer separador de la lista.
-  const currentSeparator = separators[0];
-  const nextSeparators = separators.slice(1);
-
-  let chunks = [];
-  if (currentSeparator) {
-    const splits = text.split(currentSeparator);
-    let buffer = "";
-    for (const split of splits) {
-      const newBuffer = buffer + (buffer ? currentSeparator : "") + split;
-      if (newBuffer.length > chunkSize) {
-        // Si el buffer excede el tamaño, lo agregamos como un chunk
-        // y si es muy grande, lo subdividimos recursivamente.
-        if (buffer) {
-          const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-          chunks.push(...subChunks);
-        }
-        buffer = split;
-      } else {
-        buffer = newBuffer;
-      }
-    }
-    if (buffer) {
-      const subChunks = await recursiveChunkText(buffer, chunkSize, chunkOverlap, nextSeparators);
-      chunks.push(...subChunks);
-    }
-  } else {
-    // Si no hay más separadores, cortamos por tamaño.
-    for (let i = 0; i < text.length; i += chunkSize - chunkOverlap) {
-      chunks.push(text.slice(i, i + chunkSize));
-    }
+  let i = 0;
+  while (i < text.length) {
+    const end = Math.min(i + chunkSize, text.length);
+    chunks.push(text.slice(i, end));
+    i += chunkSize - chunkOverlap;
   }
-
-  // Unir chunks pequeños para optimizar
-  const mergedChunks = [];
-  let currentChunk = "";
-  for (const chunk of chunks) {
-    if ((currentChunk + chunk).length <= chunkSize) {
-      currentChunk += chunk;
-    } else {
-      mergedChunks.push(currentChunk);
-      currentChunk = chunk;
-    }
-  }
-  if (currentChunk) {
-    mergedChunks.push(currentChunk);
-  }
-
-  return mergedChunks.filter(chunk => chunk.trim().length > 10);
+  return chunks.filter(chunk => chunk.trim().length > 10); // Filtrar chunks vacíos o muy cortos
 }
 
 
@@ -94,8 +51,8 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    // 1. Dividir el texto en fragmentos usando la nueva lógica recursiva
-    const chunks = await recursiveChunkText(textContent);
+    // 1. Dividir el texto en fragmentos usando el método simple
+    const chunks = simpleChunkText(textContent);
 
     if (chunks.length === 0) {
       return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
@@ -105,7 +62,7 @@ serve(async (req) => {
     }
 
     // 2. Generar embeddings para cada fragmento en lotes
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 100; // Límite de Gemini para batchEmbedContents
     const allEmbeddings = [];
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
@@ -114,6 +71,11 @@ serve(async (req) => {
         requests: batchChunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
       });
       allEmbeddings.push(...embeddingsResponse.embeddings);
+    }
+
+    // Verificar que tengamos un embedding por cada chunk
+    if (allEmbeddings.length !== chunks.length) {
+      throw new Error(`Inconsistencia en la generación de embeddings. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`);
     }
 
     const newChunks = chunks.map((chunk, i) => ({
