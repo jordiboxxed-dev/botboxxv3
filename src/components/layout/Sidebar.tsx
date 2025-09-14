@@ -75,7 +75,7 @@ export const Sidebar = ({ userAgents, activeAgentId, onDeleteAgent, onLinkClick 
         
         {userAgents.length > 0 ? userAgents.map((agent, index) => (
           <div key={agent.id} className={`flex items-center gap-2 rounded-xl ${agent.id === activeAgentId ? 'ring-2 ring-blue-400' : ''}`}>
-            <Link to={`/agent/${agent.id}`} onClick={onLinkClick} className="flex-grow">
+            <Link to={`/agent/${agent.id}`} onClick={onLinkClick} className="flex-1 min-w-0">
               <AgentCard 
                 agent={{
                   ...agent,

@@ -61,7 +61,7 @@ const Dashboard = () => {
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="text-left">
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
               BotBoxx Agents Hub
             </h1>
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
