@@ -110,7 +110,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       showError("El nombre y las instrucciones base son obligatorios.");
       return;
     }
-    const finalWebhookUrl = usageInfo?.role === 'admin' ? webhookUrl : DEFAULT_WEBHOOK_URL;
+    const finalWebhookUrl = (usageInfo?.role === 'admin' ? webhookUrl : DEFAULT_WEBHOOK_URL).trim();
     await onSubmit({ 
       name, description, company_name: companyName, system_prompt: systemPrompt,
       widget_color: widgetColor, widget_welcome_message: widgetWelcomeMessage,
