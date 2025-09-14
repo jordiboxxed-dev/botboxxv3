@@ -159,9 +159,8 @@ const Billing = () => {
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">$97<span className="text-lg text-gray-300">/mes</span></div>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>5 agentes</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>2 agentes</li>
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>1,000 mensajes/mes</li>
-                <li className="flex items-center font-semibold text-indigo-300"><Zap className="w-4 h-4 mr-2"/>Herramientas</li>
                 <li className="flex items-center font-semibold text-indigo-300"><BarChart2 className="w-4 h-4 mr-2"/>Panel de ROI y Analíticas</li>
               </ul>
               <Button onClick={() => handleSubscribe('pro')} disabled={isProcessing || plan === 'pro' || plan === 'premium' || plan === 'admin'} className="w-full bg-indigo-600 hover:bg-indigo-700">
