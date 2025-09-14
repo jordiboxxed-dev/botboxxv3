@@ -69,7 +69,7 @@ const PublicAgentPage = () => {
       style={backgroundStyle}
     >
       {/* Overlay oscuro para mejorar la legibilidad del chat */}
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 bg-black/30"></div>
       
       {/* Contenedor del widget de chat */}
       <div className="absolute bottom-4 right-4 w-full max-w-[450px] h-full max-h-[calc(100dvh-2rem)] sm:max-h-[700px]">
