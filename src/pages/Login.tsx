@@ -85,7 +85,7 @@ const Login = () => {
         )}
       >
         <div className="text-center">
-          <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-purple-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
             BotBoxx
           </h1>
           <p className="text-gray-400 mt-2">
