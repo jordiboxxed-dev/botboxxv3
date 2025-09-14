@@ -22,6 +22,7 @@ export interface Agent {
   deleted_at: string | null;
   model: string | null;
   webhook_url: string | null;
+  public_background_url: string | null;
 }
 
 export const AppLayout = () => {

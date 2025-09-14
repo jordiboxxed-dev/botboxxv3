@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { showError } from "@/utils/toast";
-import { Loader2, Zap } from "lucide-react";
+import { showError, showSuccess } from "@/utils/toast";
+import { Loader2, Zap, Upload, Trash2 } from "lucide-react";
 import { Agent } from "@/components/layout/AppLayout";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUsage } from "@/hooks/useUsage";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AgentFormProps {
   onSubmit: (agentData: Omit<Agent, 'id' | 'user_id' | 'created_at' | 'deleted_at'>) => Promise<void>;
@@ -30,6 +31,7 @@ const DEFAULT_WEBHOOK_URL = "https://n8n.srv945931.hstgr.cloud/webhook/agente-ve
 export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText = "Crear Agente" }: AgentFormProps) => {
   const navigate = useNavigate();
   const { usageInfo } = useUsage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -41,6 +43,8 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
   const [status, setStatus] = useState("active");
   const [model, setModel] = useState("mistralai/mistral-7b-instruct");
   const [webhookUrl, setWebhookUrl] = useState(DEFAULT_WEBHOOK_URL);
+  const [publicBackgroundUrl, setPublicBackgroundUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   useEffect(() => {
     if (initialData) {
@@ -53,11 +57,62 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       setWidgetPosition(initialData.widget_position || "right");
       setStatus(initialData.status || "active");
       setModel(initialData.model || "mistralai/mistral-7b-instruct");
+      setPublicBackgroundUrl(initialData.public_background_url || null);
       if (usageInfo?.role === 'admin') {
         setWebhookUrl(initialData.webhook_url || DEFAULT_WEBHOOK_URL);
       }
     }
   }, [initialData, usageInfo]);
+
+  const handleBackgroundUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !initialData?.id) return;
+
+    setIsUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      showError("Debes iniciar sesión para subir archivos.");
+      setIsUploading(false);
+      return;
+    }
+
+    const filePath = `public/${user.id}/${initialData.id}/${Date.now()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('agent_backgrounds')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      showError("Error al subir la imagen: " + uploadError.message);
+      setIsUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('agent_backgrounds')
+      .getPublicUrl(filePath);
+
+    setPublicBackgroundUrl(publicUrl);
+    setIsUploading(false);
+    showSuccess("Imagen de fondo subida correctamente.");
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!publicBackgroundUrl) return;
+    
+    const filePath = publicBackgroundUrl.split('/agent_backgrounds/')[1];
+    
+    const { error } = await supabase.storage
+      .from('agent_backgrounds')
+      .remove([filePath]);
+
+    if (error) {
+      showError("No se pudo eliminar la imagen del almacenamiento: " + error.message);
+    } else {
+      showSuccess("Imagen de fondo eliminada.");
+    }
+    setPublicBackgroundUrl(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +138,7 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
       status,
       model,
       webhook_url: finalWebhookUrl,
+      public_background_url: publicBackgroundUrl,
     });
   };
 
@@ -196,6 +252,32 @@ export const AgentForm = ({ onSubmit, isLoading, initialData, submitButtonText =
               className="bg-black/20 border-white/20 text-white mt-2 min-h-[80px]" 
             />
           </div>
+
+          {initialData?.id && (
+            <div>
+              <Label htmlFor="publicBackground" className="text-white">Fondo de Página Pública</Label>
+              <div className="mt-2 flex items-center gap-4 p-4 bg-black/20 rounded-lg">
+                {publicBackgroundUrl ? (
+                  <img src={publicBackgroundUrl} alt="Vista previa del fondo" className="w-24 h-16 object-cover rounded-md" />
+                ) : (
+                  <div className="w-24 h-16 bg-black/30 rounded-md flex items-center justify-center text-gray-500 text-xs">Sin fondo</div>
+                )}
+                <div className="flex-1">
+                  <Input ref={fileInputRef} type="file" id="publicBackground" onChange={handleBackgroundUpload} accept="image/*" className="hidden" />
+                  <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                    {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                    {publicBackgroundUrl ? 'Cambiar Imagen' : 'Subir Imagen'}
+                  </Button>
+                  <p className="text-xs text-gray-400 mt-2">Sube una imagen para la página pública de tu agente.</p>
+                </div>
+                {publicBackgroundUrl && (
+                  <Button type="button" variant="destructive" size="icon" onClick={handleRemoveBackground}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
