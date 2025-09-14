@@ -44,15 +44,15 @@ export const UserAgentCard = ({ agent, index, onDelete }: UserAgentCardProps) =>
       transition={{ duration: 0.3, delay: index * 0.1 }}
       className={cn(cardProps.className, "bg-black/30 rounded-xl p-4 border border-white/10 hover:border-blue-400 transition-all duration-200 flex items-center justify-between")}
     >
-      <Link to={`/agent/${agent.id}`} className="flex-grow">
+      <Link to={`/agent/${agent.id}`} className="flex-grow min-w-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-white/10 rounded-md">
             <Bot className="w-6 h-6 text-gray-300" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-white truncate">{agent.name}</h3>
-              <Badge variant={agent.status === 'active' ? 'default' : 'secondary'} className={cn(agent.status === 'active' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30')}>
+              <Badge variant={agent.status === 'active' ? 'default' : 'secondary'} className={cn('flex-shrink-0', agent.status === 'active' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30')}>
                 {agent.status === 'active' ? 'Activo' : 'Inactivo'}
               </Badge>
             </div>

@@ -11,6 +11,7 @@ import { TemplatePreviewDialog } from "@/components/agents/TemplatePreviewDialog
 import { TemplateCard } from "@/components/agents/TemplateCard";
 import { UserAgentCard } from "@/components/agents/UserAgentCard";
 import { useUsage } from "@/hooks/useUsage";
+import { CreateFromTemplateDialog } from "@/components/agents/CreateFromTemplateDialog";
 
 const Templates = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ const Templates = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userAgents, setUserAgents] = useState<any[]>([]);
   const [previewingAgent, setPreviewingAgent] = useState<TemplateAgent | null>(null);
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState<TemplateAgent | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
 
   const fetchUserAgents = async () => {
@@ -50,11 +53,17 @@ const Templates = () => {
     fetchUserAgents();
   }, [navigate]);
 
-  const handleCreateFromTemplate = async (template: any) => {
+  const handleUseTemplateClick = (template: TemplateAgent) => {
     if (agentLimitReached) {
       showError("Has alcanzado el límite de agentes de tu plan. Mejora tu plan para crear más.");
       return;
     }
+    setCreatingFromTemplate(template);
+  };
+
+  const handleConfirmCreateFromTemplate = async (name: string, companyName: string) => {
+    if (!creatingFromTemplate) return;
+    setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -66,9 +75,10 @@ const Templates = () => {
         .from("agents")
         .insert({
           user_id: user.id,
-          name: `Copia de ${template.name}`,
-          description: template.description,
-          system_prompt: template.systemPrompt,
+          name: name,
+          company_name: companyName,
+          description: creatingFromTemplate.description,
+          system_prompt: creatingFromTemplate.systemPrompt,
           status: 'active',
         })
         .select()
@@ -81,6 +91,9 @@ const Templates = () => {
     } catch (error) {
       console.error("Error creating agent from template:", error);
       showError("Error al crear el agente desde la plantilla.");
+    } finally {
+      setIsSubmitting(false);
+      setCreatingFromTemplate(null);
     }
   };
 
@@ -190,7 +203,7 @@ const Templates = () => {
               agent={agent}
               index={index}
               onPreview={setPreviewingAgent}
-              onUseTemplate={handleCreateFromTemplate}
+              onUseTemplate={handleUseTemplateClick}
               isCreationDisabled={agentLimitReached}
             />
           ))}
@@ -203,11 +216,19 @@ const Templates = () => {
         agent={previewingAgent}
         onUseTemplate={() => {
           if (previewingAgent) {
-            handleCreateFromTemplate(previewingAgent);
+            handleUseTemplateClick(previewingAgent);
           }
           setPreviewingAgent(null);
         }}
         isCreationDisabled={agentLimitReached}
+      />
+
+      <CreateFromTemplateDialog
+        open={!!creatingFromTemplate}
+        onOpenChange={(isOpen) => !isSubmitting && setCreatingFromTemplate(null)}
+        template={creatingFromTemplate}
+        onSubmit={handleConfirmCreateFromTemplate}
+        isSubmitting={isSubmitting}
       />
     </div>
   );

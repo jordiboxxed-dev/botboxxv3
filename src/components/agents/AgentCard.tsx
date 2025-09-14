@@ -48,9 +48,9 @@ export const AgentCard = ({ agent, onClick, index, isInteractive = true, disable
       <div className="p-2 bg-white/10 rounded-md">
         <Icon name={agent.avatar} className="w-6 h-6 text-gray-300" />
       </div>
-      <div>
-        <p className="font-semibold text-white">{agent.name}</p>
-        <p className="text-sm text-gray-400">{agent.description}</p>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-white truncate">{agent.name}</p>
+        <p className="text-sm text-gray-400 truncate">{agent.description}</p>
       </div>
     </motion.button>
   );

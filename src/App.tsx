@@ -20,6 +20,7 @@ import AuthCallback from "./pages/AuthCallback";
 import Account from "./pages/Account";
 import PublicAgentPage from "./pages/PublicAgentPage";
 import Billing from "./pages/Billing";
+import ScrollToTop from "./components/layout/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             {/* Rutas públicas */}
             <Route path="/login" element={<Login />} />
