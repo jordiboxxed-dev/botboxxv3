@@ -202,7 +202,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
               <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   {'avatar_url' in selectedAgent && selectedAgent.avatar_url ? (
-                    <img src={selectedAgent.avatar_url} alt={`${selectedAgent.name} logo`} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                    <img src={selectedAgent.avatar_url} alt={`${selectedAgent.name} logo`} className="w-12 h-12 rounded-full object-contain flex-shrink-0" />
                   ) : (
                     <div className="p-3 bg-white/10 rounded-full flex-shrink-0">
                       <Bot className="w-6 h-6 text-gray-300" />

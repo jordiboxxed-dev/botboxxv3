@@ -147,7 +147,7 @@ export const PublicChatInterface = () => {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
             {agentConfig.avatar_url ? (
-              <img src={agentConfig.avatar_url} alt={`${agentConfig.name} logo`} className="w-full h-full rounded-full object-cover" />
+              <img src={agentConfig.avatar_url} alt={`${agentConfig.name} logo`} className="w-full h-full rounded-full object-contain" />
             ) : (
               <Bot className="w-6 h-6 text-white" />
             )}
