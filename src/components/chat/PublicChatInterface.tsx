@@ -17,6 +17,7 @@ interface AgentConfig {
   company_name: string | null;
   widget_color: string;
   widget_welcome_message: string;
+  avatar_url: string | null;
 }
 
 export const PublicChatInterface = () => {
@@ -144,8 +145,12 @@ export const PublicChatInterface = () => {
         style={{ backgroundColor: agentConfig.widget_color }}
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white/20 rounded-full">
-            <Bot className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            {agentConfig.avatar_url ? (
+              <img src={agentConfig.avatar_url} alt={`${agentConfig.name} logo`} className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <Bot className="w-6 h-6 text-white" />
+            )}
           </div>
           <div>
             <h3 className="font-bold text-white">{agentConfig.name}</h3>

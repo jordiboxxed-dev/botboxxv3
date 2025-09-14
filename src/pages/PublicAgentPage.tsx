@@ -13,6 +13,18 @@ const PublicAgentPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (agent?.avatar_url) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = agent.avatar_url;
+    }
+  }, [agent]);
+
+  useEffect(() => {
     if (!agentId) {
       setError("No se ha especificado un agente.");
       setIsLoading(false);

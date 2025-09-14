@@ -199,12 +199,21 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         <>
           <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
             <div className="flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6">
-              <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-white">{selectedAgent.name}</h2>
-                  <p className="text-sm text-gray-400">{selectedAgent.description}</p>
+              <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {'avatar_url' in selectedAgent && selectedAgent.avatar_url ? (
+                    <img src={selectedAgent.avatar_url} alt={`${selectedAgent.name} logo`} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="p-3 bg-white/10 rounded-full flex-shrink-0">
+                      <Bot className="w-6 h-6 text-gray-300" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-bold text-white truncate">{selectedAgent.name}</h2>
+                    <p className="text-sm text-gray-400 truncate">{selectedAgent.description}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Limpiar historial de chat" onClick={onClearChat}>
                     <MessageSquareX className="w-5 h-5" />
                   </Button>
