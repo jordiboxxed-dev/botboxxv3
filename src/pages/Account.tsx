@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, ArrowLeft, Info } from "lucide-react";
 
 interface Profile {
   first_name: string;
@@ -17,6 +18,7 @@ interface Profile {
 
 const Account = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
@@ -26,6 +28,8 @@ const Account = () => {
   const [lastName, setLastName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const isNewUser = new URLSearchParams(location.search).get('new') === 'true';
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -86,9 +90,12 @@ const Account = () => {
     if (error) {
       showError("Error al cambiar la contraseña: " + error.message);
     } else {
-      showSuccess("Contraseña cambiada con éxito.");
+      showSuccess("Contraseña establecida con éxito.");
       setNewPassword("");
       setConfirmPassword("");
+      if (isNewUser) {
+        navigate('/dashboard'); // Redirect after setting password for the first time
+      }
     }
     setUpdatingPassword(false);
   };
@@ -109,13 +116,25 @@ const Account = () => {
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver al Dashboard
-          </Button>
+          {!isNewUser && (
+            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver al Dashboard
+            </Button>
+          )}
           <h1 className="text-3xl font-bold">Mi Cuenta</h1>
           <p className="text-gray-400">Gestiona tu información personal y seguridad.</p>
         </div>
+
+        {isNewUser && (
+          <Alert className="mb-6 bg-blue-900/50 border-blue-500/30 text-blue-200">
+            <Info className="h-4 w-4 !text-blue-300" />
+            <AlertTitle className="text-white font-bold">¡Bienvenido/a!</AlertTitle>
+            <AlertDescription>
+              Para completar la configuración de tu cuenta, por favor establece una contraseña segura.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-8">
           <Card className="bg-black/30 border-white/10">
@@ -150,7 +169,7 @@ const Account = () => {
 
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Cambiar Contraseña</CardTitle>
+              <CardTitle className="text-white">{isNewUser ? "Establecer Contraseña" : "Cambiar Contraseña"}</CardTitle>
               <CardDescription className="text-gray-400">Elige una contraseña nueva y segura.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -165,7 +184,7 @@ const Account = () => {
                 </div>
                 <div className="flex justify-end">
                   <Button type="submit" disabled={updatingPassword}>
-                    {updatingPassword ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cambiando...</> : "Cambiar Contraseña"}
+                    {updatingPassword ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</> : isNewUser ? "Guardar y Continuar" : "Cambiar Contraseña"}
                   </Button>
                 </div>
               </form>
