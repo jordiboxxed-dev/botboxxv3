@@ -33,44 +33,40 @@ export const useUsage = () => {
       .eq('id', user.id)
       .single();
 
-    if (profileError) {
-      if (profileError.code === 'PGRST116') {
-        console.warn("User profile not found in useUsage, creating one...");
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error("Failed to fetch profile in useUsage:", profileError);
+      profile = null;
+    }
 
-        const firstName = user.user_metadata.first_name || '';
-        const lastName = user.user_metadata.last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim();
+    if (!profile) {
+      console.warn("User profile not found in useUsage, attempting to create one...");
 
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            first_name: user.user_metadata.first_name || '',
-            last_name: user.user_metadata.last_name || '',
-          })
-          .select('plan, trial_ends_at, role')
-          .single();
-        
-        if (createError) {
-          console.error("Failed to create profile from useUsage:", createError);
-          profile = null;
-        } else {
-          profile = newProfile;
-          // Also insert into user_profiles
-          const { error: createUserProfileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: user.id,
-              full_name: fullName,
-            });
-          if (createUserProfileError) {
-            console.error("Failed to create secondary user profile from useUsage:", createUserProfileError);
-          }
-        }
-      } else {
-        console.error("Failed to fetch profile in useUsage:", profileError);
+      const firstName = user.user_metadata.first_name || '';
+      const lastName = user.user_metadata.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email,
+          first_name: user.user_metadata.first_name || '',
+          last_name: user.user_metadata.last_name || '',
+        })
+        .select('plan, trial_ends_at, role')
+        .single();
+      
+      if (createError) {
+        console.error("Failed to create profile from useUsage:", createError);
         profile = null;
+      } else {
+        profile = newProfile;
+        const { error: createUserProfileError } = await supabase
+          .from('user_profiles')
+          .insert({ id: user.id, full_name: fullName });
+        if (createUserProfileError) {
+          console.error("Failed to create secondary user profile from useUsage:", createUserProfileError);
+        }
       }
     }
 

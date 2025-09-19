@@ -21,14 +21,24 @@ const Home = () => {
         .eq('id', user.id)
         .single();
 
-      // Si el perfil no existe, lo creamos. Esto es un respaldo para el trigger de la base de datos.
-      if (error && error.code === 'PGRST116') {
+      // If there's an error and it's not "not found", log out the user.
+      if (error && error.code !== 'PGRST116') {
+        showError("Error al consultar el perfil: " + error.message);
+        console.error("Error fetching profile:", error);
+        await supabase.auth.signOut();
+        navigate('/login');
+        return;
+      }
+
+      // If profile is null (which includes the "not found" case), create it.
+      if (!profile) {
         console.warn("Perfil no encontrado, creando uno...");
 
         const firstName = user.user_metadata.first_name || '';
         const lastName = user.user_metadata.last_name || '';
         const fullName = `${firstName} ${lastName}`.trim();
 
+        // 1. Create main profile
         const { data: newProfile, error: createProfileError } = await supabase
           .from('profiles')
           .insert({
@@ -41,40 +51,34 @@ const Home = () => {
           .single();
         
         if (createProfileError) {
-          showError("No se pudo crear tu perfil. Por favor, intenta de nuevo.");
-          console.error("Error al crear perfil principal:", createProfileError);
+          showError("No se pudo crear tu perfil principal. Por favor, intenta de nuevo.");
+          console.error("Error creating main profile:", createProfileError);
           await supabase.auth.signOut();
           navigate('/login');
           return;
         }
         
-        // Also insert into user_profiles to match the DB trigger
+        // 2. Create secondary user profile
         const { error: createUserProfileError } = await supabase
           .from('user_profiles')
           .insert({ id: user.id, full_name: fullName });
 
         if (createUserProfileError) {
-          console.error("Error al crear perfil de usuario secundario:", createUserProfileError);
-          showError("Se creó un perfil parcial. Algunas funciones podrían fallar.");
+          showError("No se pudo crear tu perfil secundario. Algunas funciones podrían fallar.");
+          console.error("Error creating secondary user profile:", createUserProfileError);
         }
         
         profile = newProfile;
-
-      } else if (error) {
-        showError("No se pudo cargar tu perfil de usuario.");
-        console.error("Error al obtener perfil:", error);
-        await supabase.auth.signOut();
-        navigate('/login');
-        return;
       }
 
       if (!profile) {
-        showError("Perfil no encontrado. Por favor, contacta a soporte.");
+        showError("El perfil no pudo ser creado. Por favor, contacta a soporte.");
         await supabase.auth.signOut();
         navigate('/login');
         return;
       }
 
+      // Redirect based on role
       switch (profile.role) {
         case 'admin':
           navigate('/admin');
