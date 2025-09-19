@@ -285,17 +285,6 @@ serve(async (req) => {
       if (typeof responseText !== 'string') {
         throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
       }
-
-      try {
-        const toolCall = JSON.parse(responseText);
-        if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
-          console.log("Tool call detected: create_calendar_event");
-          const result = await createCalendarEvent(user.id, toolCall.params, supabaseAdmin);
-          responseText = result.message;
-        }
-      } catch (e) {
-        // Not a JSON or not a valid tool call, treat as plain text.
-      }
     } else {
       console.log("No webhook URL found. Using direct Gemini call.");
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
@@ -319,6 +308,18 @@ serve(async (req) => {
       });
       const result = await chat.sendMessage(prompt);
       responseText = result.response.text();
+    }
+
+    // --- Tool Execution Logic (runs for both webhook and direct call) ---
+    try {
+      const toolCall = JSON.parse(responseText);
+      if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
+        console.log("Tool call detected: create_calendar_event");
+        const result = await createCalendarEvent(user.id, toolCall.params, supabaseAdmin);
+        responseText = result.message;
+      }
+    } catch (e) {
+      // Not a JSON or not a valid tool call, treat as plain text.
     }
 
     const { data: profileData } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
