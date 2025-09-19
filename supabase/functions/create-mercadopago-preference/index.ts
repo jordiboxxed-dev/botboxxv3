@@ -61,7 +61,7 @@ serve(async (req) => {
       },
       auto_return: "approved",
       external_reference: userId,
-      notification_url: `https://fyagqhcjfuhtjoeqshwk.supabase.co/functions/v1/mercadopago-webhook`,
+      notification_url: `https://hyslwljeddgnqrjoxeql.supabase.co/functions/v1/mercadopago-webhook`,
     };
 
     console.log("Creating MercadoPago preference via direct API call...");
