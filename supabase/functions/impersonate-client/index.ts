@@ -63,7 +63,7 @@ serve(async (req) => {
         throw new Error("Este cliente no pertenece a tu agencia.");
     }
 
-    // 4. Generate magic link to get tokens
+    // 4. Generate magic link
     const { data, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email: clientProfile.email,
@@ -71,15 +71,33 @@ serve(async (req) => {
 
     if (linkError) throw linkError;
 
-    const urlParams = new URLSearchParams(new URL(data.properties.action_link).hash.substring(1));
+    const action_link = data.properties.action_link;
+
+    // 5. Simulate clicking the link by fetching it and getting the redirect location
+    const response = await fetch(action_link, { redirect: 'manual' });
+
+    if (response.status !== 302) {
+        const responseBody = await response.text();
+        console.error("Magic link did not redirect as expected.", { status: response.status, body: responseBody });
+        throw new Error(`Se esperaba una redirección desde el enlace mágico, pero se obtuvo el estado ${response.status}`);
+    }
+
+    const location = response.headers.get('Location');
+    if (!location) {
+        throw new Error("No se encontró la ubicación de redirección en la respuesta del enlace mágico.");
+    }
+
+    // 6. Extract tokens from the redirect URL's hash
+    const urlParams = new URLSearchParams(new URL(location).hash.substring(1));
     const access_token = urlParams.get('access_token');
     const refresh_token = urlParams.get('refresh_token');
 
     if (!access_token || !refresh_token) {
-        throw new Error("No se pudieron generar los tokens de sesión para el cliente.");
+        console.error("Could not parse tokens from redirect URL", { location });
+        throw new Error("No se pudieron generar los tokens de sesión para el cliente desde la URL de redirección.");
     }
 
-    // 5. Return tokens
+    // 7. Return tokens
     return new Response(JSON.stringify({ access_token, refresh_token }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
