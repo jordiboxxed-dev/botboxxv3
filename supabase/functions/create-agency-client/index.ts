@@ -60,23 +60,20 @@ serve(async (req) => {
 
     if (createUserError) throw createUserError;
 
-    // 5. Crear el perfil para el nuevo usuario
-    const { error: createProfileError } = await supabaseAdmin
+    // 5. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
+    const { error: updateProfileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        id: newUser.user.id,
-        email: newUser.user.email,
-        first_name: firstName,
-        last_name: lastName,
+      .update({
         role: 'client', // Asignar el rol 'client'
         agency_id: ownerProfile.agency_id, // Vincular a la agencia del dueño
         plan: 'agency_client' // Asignar un plan específico para clientes de agencia
-      });
+      })
+      .eq('id', newUser.user.id);
 
-    if (createProfileError) {
-      // Si la creación del perfil falla, eliminamos el usuario de autenticación para evitar datos huérfanos
+    if (updateProfileError) {
+      // Si la actualización del perfil falla, eliminamos el usuario de autenticación para evitar datos huérfanos
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-      throw createProfileError;
+      throw updateProfileError;
     }
 
     // 6. Enviar respuesta de éxito
