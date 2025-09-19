@@ -13,22 +13,27 @@ export const GoogleCalendarTool = () => {
   const checkConnection = async () => {
     setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setIsConnected(false);
         setIsLoading(false);
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("verify-google-connection");
+      const { data, error } = await supabase
+        .from("user_credentials")
+        .select("service")
+        .eq("user_id", user.id)
+        .eq("service", "google_calendar")
+        .maybeSingle();
 
       if (error) throw error;
       
-      setIsConnected(data.isConnected);
+      setIsConnected(!!data);
 
     } catch (err) {
-      console.error("Error verifying Google connection:", err);
-      showError("No se pudo verificar la conexión con Google Calendar.");
+      console.error("Error checking Google connection:", err);
+      showError("No se pudo comprobar la conexión con Google Calendar.");
       setIsConnected(false);
     } finally {
       setIsLoading(false);
