@@ -56,7 +56,7 @@ serve(async (req) => {
           first_name: firstName,
           last_name: lastName,
         },
-        redirectTo: 'https://botboxx-demov2.vercel.app/login',
+        redirectTo: 'https://botboxxv3.vercel.app/login',
       }
     );
 
