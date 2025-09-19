@@ -48,23 +48,22 @@ serve(async (req) => {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Generar una contraseña temporal
-    const tempPassword = `temp_${crypto.randomUUID().slice(0, 10)}`;
-
-    // 5. Crear al nuevo usuario directamente con la contraseña temporal
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    // 4. Invitar al nuevo usuario por email, lo que crea la cuenta y le permite establecer su contraseña
+    const appUrl = Deno.env.get("APP_URL") || 'https://botboxxv3.vercel.app';
+    const { data: newUser, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
-      password: tempPassword,
-      email_confirm: true, // La cuenta es creada por una fuente confiable (dueño de agencia)
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
+      {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+        redirectTo: `${appUrl}/auth/callback`,
       }
-    });
+    );
 
-    if (createError) throw createError;
+    if (inviteError) throw inviteError;
 
-    // 6. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
+    // 5. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
     const { error: updateProfileError } = await supabaseAdmin
       .from('profiles')
       .update({
@@ -80,12 +79,8 @@ serve(async (req) => {
       throw updateProfileError;
     }
 
-    // 7. Enviar respuesta de éxito con las credenciales temporales
-    return new Response(JSON.stringify({ 
-      message: "Cliente creado exitosamente.",
-      email: email,
-      tempPassword: tempPassword
-    }), {
+    // 6. Enviar respuesta de éxito
+    return new Response(JSON.stringify({ message: "Cliente creado exitosamente. Se ha enviado una invitación a su email." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

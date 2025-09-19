@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 interface CreateClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClientCreated: (credentials: { email: string; tempPassword: string }) => void;
+  onClientCreated: () => void;
 }
 
 export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: CreateClientDialogProps) => {
@@ -48,7 +48,7 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
 
       showSuccess(data.message);
       resetForm();
-      onClientCreated({ email: data.email, tempPassword: data.tempPassword });
+      onClientCreated();
       onOpenChange(false);
     } catch (error) {
       showError("Error al crear el cliente: " + (error as Error).message);
@@ -63,7 +63,7 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
         <DialogHeader>
           <DialogTitle>Crear Nuevo Cliente</DialogTitle>
           <DialogDescription>
-            Se creará una nueva cuenta para tu cliente con una contraseña temporal que deberás compartir de forma segura.
+            Se creará una cuenta para tu cliente y se le enviará un correo de invitación para que establezca su contraseña.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
@@ -86,7 +86,7 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
           <Button onClick={handleCreateClient} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Crear Cliente
+            Crear e Invitar
           </Button>
         </DialogFooter>
       </DialogContent>
