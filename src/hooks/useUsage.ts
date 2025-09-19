@@ -36,6 +36,11 @@ export const useUsage = () => {
     if (profileError) {
       if (profileError.code === 'PGRST116') {
         console.warn("User profile not found in useUsage, creating one...");
+
+        const firstName = user.user_metadata.first_name || '';
+        const lastName = user.user_metadata.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -52,6 +57,16 @@ export const useUsage = () => {
           profile = null;
         } else {
           profile = newProfile;
+          // Also insert into user_profiles
+          const { error: createUserProfileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: user.id,
+              full_name: fullName,
+            });
+          if (createUserProfileError) {
+            console.error("Failed to create secondary user profile from useUsage:", createUserProfileError);
+          }
         }
       } else {
         console.error("Failed to fetch profile in useUsage:", profileError);
