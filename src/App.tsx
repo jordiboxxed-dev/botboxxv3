@@ -24,6 +24,7 @@ import ScrollToTop from "./components/layout/ScrollToTop";
 import AgencyDashboard from "./pages/AgencyDashboard";
 import AgencyProtectedRoute from "./components/auth/AgencyProtectedRoute";
 import AgencyClientDetail from "./pages/AgencyClientDetail";
+import Home from "./pages/Home";
 
 const queryClient = new QueryClient();
 
@@ -71,7 +72,7 @@ const App = () => {
               </>
             ) : (
               <>
-                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/" element={<Home />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/billing" element={<Billing />} />

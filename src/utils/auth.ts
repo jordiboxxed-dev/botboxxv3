@@ -23,11 +23,3 @@ export const handleEmailConfirmation = async (searchParams: URLSearchParams) => 
   }
   return false;
 };
-
-export const redirectToDashboard = () => {
-  window.location.href = '/dashboard';
-};
-
-export const redirectToLogin = () => {
-  window.location.href = '/login';
-};

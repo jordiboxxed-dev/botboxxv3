@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useNavigate, useLocation } from "react-router-dom";
-import { handleEmailConfirmation, redirectToDashboard } from "@/utils/auth";
+import { handleEmailConfirmation } from "@/utils/auth";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { Button } from "@/components/ui/button";
 import { LogIn, UserPlus } from "lucide-react";
@@ -24,7 +24,7 @@ const Login = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/dashboard');
+        navigate('/');
       } else {
         setLoading(false);
       }
@@ -34,7 +34,7 @@ const Login = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
-        navigate('/dashboard');
+        navigate('/');
       }
     });
 
@@ -50,13 +50,13 @@ const Login = () => {
       
       if (confirmed) {
         setTimeout(() => {
-          redirectToDashboard();
+          navigate('/');
         }, 1000);
       }
     };
 
     processEmailConfirmation();
-  }, [location]);
+  }, [location, navigate]);
 
   if (loading) {
     return (
