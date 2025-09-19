@@ -25,6 +25,7 @@ import AgencyDashboard from "./pages/AgencyDashboard";
 import AgencyProtectedRoute from "./components/auth/AgencyProtectedRoute";
 import AgencyClientDetail from "./pages/AgencyClientDetail";
 import Home from "./pages/Home";
+import { ImpersonationBanner } from "./components/layout/ImpersonationBanner";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,7 @@ const App = () => {
               </>
             )}
           </Routes>
+          {session && <ImpersonationBanner />}
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

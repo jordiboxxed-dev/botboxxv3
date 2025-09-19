@@ -143,7 +143,7 @@ const Billing = () => {
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">$0<span className="text-lg text-gray-400">/mes</span></div>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>2 agentes</li>
+                <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>1 agente</li>
                 <li className="flex items-center text-gray-300"><span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>150 mensajes/mes</li>
               </ul>
               {plan === 'trial' && <Button variant="outline" className="w-full" disabled>Plan actual</Button>}
@@ -159,7 +159,7 @@ const Billing = () => {
             <CardContent>
               <div className="text-3xl font-bold text-white mb-4">$97<span className="text-lg text-gray-300">/mes</span></div>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>2 agentes</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>5 agentes</li>
                 <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>1,000 mensajes/mes</li>
                 <li className="flex items-center font-semibold text-indigo-300"><BarChart2 className="w-4 h-4 mr-2"/>Panel de ROI y Analíticas</li>
               </ul>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, User, Trash2 } from "lucide-react";
+import { PlusCircle, User, Trash2, LogIn, Loader2 } from "lucide-react";
 import { CreateClientDialog } from "@/components/agency/CreateClientDialog";
 import { useNavigate } from "react-router-dom";
 import {
@@ -32,6 +32,7 @@ export const ClientList = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const fetchClients = useCallback(async () => {
@@ -67,6 +68,39 @@ export const ClientList = () => {
     useEffect(() => {
         fetchClients();
     }, [fetchClients]);
+
+    const handleImpersonate = async (client: Client) => {
+        setImpersonatingId(client.id);
+        try {
+            const { data: currentSessionData, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError || !currentSessionData.session) {
+                throw new Error("No se pudo obtener la sesión actual.");
+            }
+            
+            localStorage.setItem('dyad_impersonation_original_session', JSON.stringify(currentSessionData.session));
+
+            const { data, error } = await supabase.functions.invoke('impersonate-client', {
+                body: { clientId: client.id }
+            });
+
+            if (error) throw error;
+            if (data.error) throw new Error(data.error);
+
+            const { access_token, refresh_token } = data;
+            const { error: setSessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (setSessionError) throw setSessionError;
+
+            showSuccess(`Iniciando sesión como ${client.first_name}. Serás redirigido.`);
+            
+            window.location.href = '/dashboard';
+
+        } catch (error) {
+            showError("Error al iniciar sesión como cliente: " + (error as Error).message);
+            localStorage.removeItem('dyad_impersonation_original_session');
+        } finally {
+            setImpersonatingId(null);
+        }
+    };
 
     const handleDeleteClient = async (clientId: string) => {
         try {
@@ -124,7 +158,18 @@ export const ClientList = () => {
                                             </TableCell>
                                             <TableCell className="text-gray-300">{client.email}</TableCell>
                                             <TableCell className="text-center text-gray-300">{client.agent_count}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right space-x-2">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    disabled={impersonatingId === client.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleImpersonate(client);
+                                                    }}
+                                                >
+                                                    {impersonatingId === client.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><LogIn className="w-4 h-4 mr-2" /> Administrar</>}
+                                                </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button 
