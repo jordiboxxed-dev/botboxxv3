@@ -27,15 +27,45 @@ export const useUsage = () => {
       return;
     }
 
+    let { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('plan, trial_ends_at, role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      if (profileError.code === 'PGRST116') {
+        console.warn("User profile not found in useUsage, creating one...");
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: user.user_metadata.first_name || '',
+            last_name: user.user_metadata.last_name || '',
+          })
+          .select('plan, trial_ends_at, role')
+          .single();
+        
+        if (createError) {
+          console.error("Failed to create profile from useUsage:", createError);
+          profile = null;
+        } else {
+          profile = newProfile;
+        }
+      } else {
+        console.error("Failed to fetch profile in useUsage:", profileError);
+        profile = null;
+      }
+    }
+
     const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-    const [profileRes, usageRes, agentsRes] = await Promise.all([
-      supabase.from('profiles').select('plan, trial_ends_at, role').eq('id', user.id).single(),
+    const [usageRes, agentsRes] = await Promise.all([
       supabase.from('usage_stats').select('messages_sent').eq('user_id', user.id).eq('month_start', currentMonthStart).single(),
       supabase.from('agents').select('id', { count: 'exact', head: true }).eq('user_id', user.id).is('deleted_at', null)
     ]);
 
-    const profile = profileRes.data;
     const usage = usageRes.data;
     const agentCount = agentsRes.count || 0;
 

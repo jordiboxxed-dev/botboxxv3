@@ -43,10 +43,31 @@ export const AppLayout = () => {
       return { agents: [], error: 'No user' };
     }
 
-    const { data: profile, error: profileError } = await supabase.from('profiles').select('role, agency_id').eq('id', user.id).single();
+    let { data: profile, error: profileError } = await supabase.from('profiles').select('role, agency_id').eq('id', user.id).single();
+    
     if (profileError) {
-      showError("No se pudo cargar tu perfil de usuario.");
-      return { agents: [], error: profileError.message };
+      if (profileError.code === 'PGRST116') { // "No rows found"
+        console.warn("User profile not found, attempting to create one...");
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: user.user_metadata.first_name || '',
+            last_name: user.user_metadata.last_name || '',
+          })
+          .select('role, agency_id')
+          .single();
+
+        if (createError) {
+          showError("No se pudo crear tu perfil de usuario. Por favor, contacta a soporte.");
+          return { agents: [], error: createError.message };
+        }
+        profile = newProfile;
+      } else {
+        showError("No se pudo cargar tu perfil de usuario.");
+        return { agents: [], error: profileError.message };
+      }
     }
 
     let query = supabase.from('agents').select('*');
