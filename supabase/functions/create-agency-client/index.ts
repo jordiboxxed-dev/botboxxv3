@@ -8,13 +8,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Function to generate a random password
+const generatePassword = (length = 12) => {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+  return password;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // 1. Autenticar al llamador (el dueño de la agencia)
+    // 1. Authenticate the caller (the agency owner)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta el encabezado de autorización.");
     const token = authHeader.replace('Bearer ', '');
@@ -27,7 +38,7 @@ serve(async (req) => {
     const { data: { user: agencyOwner }, error: userError } = await supabase.auth.getUser();
     if (userError || !agencyOwner) throw new Error("Token de usuario inválido.");
 
-    // 2. Verificar que el llamador es un dueño de agencia y obtener su agency_id
+    // 2. Verify that the caller is an agency owner and get their agency_id
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? '',
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
@@ -42,28 +53,29 @@ serve(async (req) => {
       throw new Error("El usuario no es un dueño de agencia válido.");
     }
 
-    // 3. Obtener los detalles del nuevo cliente del cuerpo de la solicitud
+    // 3. Get the new client's details from the request body
     const { firstName, lastName, email } = await req.json();
     if (!firstName || !lastName || !email) {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Invitar al nuevo usuario por email, lo que crea la cuenta y le permite establecer su contraseña
-    const appUrl = Deno.env.get("APP_URL") || 'https://botboxxv3.vercel.app';
-    const { data: newUser, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    // 4. Generate a temporary password
+    const temporaryPassword = generatePassword();
+
+    // 5. Create the new user with email and password
+    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
-        redirectTo: `${appUrl}/auth/callback`,
+      password: temporaryPassword,
+      email_confirm: true, // Auto-confirm email since we are creating them
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
       }
-    );
+    });
 
-    if (inviteError) throw inviteError;
+    if (createUserError) throw createUserError;
 
-    // 5. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
+    // 6. Update the new user's profile (created by the handle_new_user trigger)
     const { error: updateProfileError } = await supabaseAdmin
       .from('profiles')
       .update({
@@ -74,13 +86,19 @@ serve(async (req) => {
       .eq('id', newUser.user.id);
 
     if (updateProfileError) {
-      // Si la actualización del perfil falla, eliminamos el usuario de autenticación para evitar datos huérfanos
+      // If updating the profile fails, delete the auth user to prevent orphaned data
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
       throw updateProfileError;
     }
 
-    // 6. Enviar respuesta de éxito
-    return new Response(JSON.stringify({ message: "Cliente creado exitosamente. Se ha enviado una invitación a su email." }), {
+    // 7. Send success response with the temporary credentials
+    return new Response(JSON.stringify({ 
+      message: "Cliente creado exitosamente.",
+      credentials: {
+        email: newUser.user.email,
+        password: temporaryPassword
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
