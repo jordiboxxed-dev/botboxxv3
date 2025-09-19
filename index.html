@@ -6,11 +6,16 @@
     <title>dyad-generated-app</title>
     
     <!-- Librería y configuración de PDF.js para procesamiento en el cliente -->
-    <script src="https://mozilla.github.io/pdf.js/build/pdf.mjs" type="module"></script>
     <script type="module">
-        if (globalThis.pdfjsLib) {
-            globalThis.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://mozilla.github.io/pdf.js/build/pdf.worker.mjs`;
-        }
+      import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
+      
+      // Asignar al objeto global para que esté disponible en la aplicación
+      window.pdfjsLib = pdfjsLib;
+
+      // Configurar el worker
+      if (pdfjsLib.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://mozilla.github.io/pdf.js/build/pdf.worker.mjs`;
+      }
     </script>
   </head>
 
