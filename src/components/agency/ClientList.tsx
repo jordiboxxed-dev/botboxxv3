@@ -1,13 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, User, ChevronRight } from "lucide-react";
+import { PlusCircle, User, Trash2 } from "lucide-react";
 import { CreateClientDialog } from "@/components/agency/CreateClientDialog";
 import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Client {
     id: string;
@@ -57,6 +68,19 @@ export const ClientList = () => {
         fetchClients();
     }, [fetchClients]);
 
+    const handleDeleteClient = async (clientId: string) => {
+        try {
+            const { error } = await supabase.functions.invoke('delete-agency-client', {
+                body: { clientId }
+            });
+            if (error) throw error;
+            showSuccess("Cliente eliminado correctamente.");
+            fetchClients(); // Refresh the list
+        } catch (error) {
+            showError("Error al eliminar el cliente: " + (error as Error).message);
+        }
+    };
+
     return (
         <>
             <Card className="bg-black/30 border-white/10">
@@ -83,21 +107,56 @@ export const ClientList = () => {
                                         <TableHead className="text-gray-200">Nombre</TableHead>
                                         <TableHead className="text-gray-200">Email</TableHead>
                                         <TableHead className="text-gray-200 text-center">Agentes</TableHead>
-                                        <TableHead className="text-right"></TableHead>
+                                        <TableHead className="text-right text-gray-200">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {clients.length > 0 ? clients.map((client) => (
                                         <TableRow 
                                             key={client.id} 
-                                            className="border-t-white/10 cursor-pointer hover:bg-white/5"
-                                            onClick={() => navigate(`/agency/client/${client.id}`)}
+                                            className="border-t-white/10"
                                         >
-                                            <TableCell className="font-medium text-gray-100">{client.first_name} {client.last_name}</TableCell>
+                                            <TableCell 
+                                                className="font-medium text-gray-100 cursor-pointer hover:underline"
+                                                onClick={() => navigate(`/agency/client/${client.id}`)}
+                                            >
+                                                {client.first_name} {client.last_name}
+                                            </TableCell>
                                             <TableCell className="text-gray-300">{client.email}</TableCell>
                                             <TableCell className="text-center text-gray-300">{client.agent_count}</TableCell>
                                             <TableCell className="text-right">
-                                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="text-gray-400 hover:text-red-500"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Eliminar a {client.first_name}?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción es permanente. Se eliminará el usuario del cliente y todos sus agentes y datos asociados. Esta acción no se puede deshacer.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteClient(client.id);
+                                                                }}
+                                                                className="bg-red-600 hover:bg-red-700"
+                                                            >
+                                                                Eliminar Cliente
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
