@@ -16,16 +16,16 @@ serve(async (req) => {
 
     const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
     const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
-    const siteUrl = Deno.env.get("SITE_URL");
+    const appUrl = Deno.env.get("APP_URL");
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-auth-callback`;
 
-    if (!googleClientId || !googleClientSecret || !siteUrl) {
+    if (!googleClientId || !googleClientSecret || !appUrl) {
         console.error("Missing environment variables in callback:", { 
             googleClientId: !!googleClientId, 
             googleClientSecret: !!googleClientSecret, 
-            siteUrl: !!siteUrl 
+            appUrl: !!appUrl 
         });
-      throw new Error("Faltan variables de entorno de Google o SITE_URL.");
+      throw new Error("Faltan variables de entorno de Google o APP_URL.");
     }
 
     // Intercambiar código por tokens
@@ -78,12 +78,12 @@ serve(async (req) => {
     console.log("Credentials successfully saved to Supabase for user:", userId);
 
     // Redirigir de vuelta a la aplicación con éxito
-    return Response.redirect(`${siteUrl}/dashboard?google_auth=success`, 302);
+    return Response.redirect(`${appUrl}/dashboard?google_auth=success`, 302);
 
   } catch (error) {
     console.error("Error in google-auth-callback:", error);
-    const siteUrl = Deno.env.get("SITE_URL") || "/";
+    const appUrl = Deno.env.get("APP_URL") || "/";
     // Redirigir de vuelta a la aplicación con error
-    return Response.redirect(`${siteUrl}/dashboard?google_auth=error&message=${encodeURIComponent(error.message)}`, 302);
+    return Response.redirect(`${appUrl}/dashboard?google_auth=error&message=${encodeURIComponent(error.message)}`, 302);
   }
 });

@@ -27,11 +27,11 @@ serve(async (req) => {
     if (userError || !user) throw new Error("Token de usuario inválido.");
 
     const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
-    const siteUrl = Deno.env.get("SITE_URL");
+    const appUrl = Deno.env.get("APP_URL");
 
-    if (!googleClientId || !siteUrl) {
-      console.error("Missing environment variables:", { googleClientId: !!googleClientId, siteUrl: !!siteUrl });
-      throw new Error("Las variables de entorno GOOGLE_CLIENT_ID y SITE_URL son requeridas.");
+    if (!googleClientId || !appUrl) {
+      console.error("Missing environment variables:", { googleClientId: !!googleClientId, appUrl: !!appUrl });
+      throw new Error("Las variables de entorno GOOGLE_CLIENT_ID y APP_URL son requeridas.");
     }
 
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-auth-callback`;
