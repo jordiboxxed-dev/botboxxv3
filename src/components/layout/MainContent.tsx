@@ -38,7 +38,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const { usageInfo } = useUsage();
 
-  const plansWithTools = ['pro', 'premium', 'admin'];
+  const plansWithTools = ['trial', 'pro', 'premium', 'admin'];
   const canUseTools = usageInfo && (plansWithTools.includes(usageInfo.plan) || usageInfo.role === 'admin');
 
   useEffect(() => {
