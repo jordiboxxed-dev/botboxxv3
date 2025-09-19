@@ -204,7 +204,7 @@ const checkMessageLimit = async (userId, supabaseAdmin) => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -231,9 +231,6 @@ serve(async (req) => {
 
     const { data: agentData, error: agentError } = await supabaseAdmin.from("agents").select("system_prompt, model, company_name, webhook_url").eq("id", agentId).single();
     if (agentError) throw new Error("No se pudo encontrar el agente.");
-    if (!agentData.webhook_url) {
-      throw new Error("Este agente no tiene un Webhook de Acciones configurado.");
-    }
 
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     if (!geminiApiKey) throw new Error("GEMINI_API_KEY no está configurada.");
@@ -260,42 +257,68 @@ serve(async (req) => {
     }
 
     const calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
+    let responseText;
 
-    const webhookPayload = {
-      agent: { id: agentId, system_prompt: agentData.system_prompt, company_name: agentData.company_name, model: agentData.model },
-      user: { id: user.id, email: user.email },
-      prompt: prompt,
-      history: history || [],
-      context: { knowledge: knowledgeContext, calendar: calendarContext }
-    };
+    if (agentData.webhook_url && agentData.webhook_url.trim() !== "") {
+      const webhookPayload = {
+        agent: { id: agentId, system_prompt: agentData.system_prompt, company_name: agentData.company_name, model: agentData.model },
+        user: { id: user.id, email: user.email },
+        prompt: prompt,
+        history: history || [],
+        context: { knowledge: knowledgeContext, calendar: calendarContext }
+      };
 
-    const webhookResponse = await fetch(agentData.webhook_url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(webhookPayload)
-    });
+      const webhookResponse = await fetch(agentData.webhook_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webhookPayload)
+      });
 
-    if (!webhookResponse.ok) {
-      const errorText = await webhookResponse.text();
-      throw new Error(`El webhook devolvió un error (${webhookResponse.status}): ${errorText}`);
-    }
-
-    const responseData = await webhookResponse.json();
-    let responseText = responseData.output;
-
-    if (typeof responseText !== 'string') {
-      throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
-    }
-
-    try {
-      const toolCall = JSON.parse(responseText);
-      if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
-        console.log("Tool call detected: create_calendar_event");
-        const result = await createCalendarEvent(user.id, toolCall.params, supabaseAdmin);
-        responseText = result.message;
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        throw new Error(`El webhook devolvió un error (${webhookResponse.status}): ${errorText}`);
       }
-    } catch (e) {
-      // Not a JSON or not a valid tool call, treat as plain text.
+
+      const responseData = await webhookResponse.json();
+      responseText = responseData.output;
+
+      if (typeof responseText !== 'string') {
+        throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
+      }
+
+      try {
+        const toolCall = JSON.parse(responseText);
+        if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
+          console.log("Tool call detected: create_calendar_event");
+          const result = await createCalendarEvent(user.id, toolCall.params, supabaseAdmin);
+          responseText = result.message;
+        }
+      } catch (e) {
+        // Not a JSON or not a valid tool call, treat as plain text.
+      }
+    } else {
+      console.log("No webhook URL found. Using direct Gemini call.");
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      const chatHistory = (history || []).map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      }));
+      const finalSystemPrompt = `
+        ${agentData.system_prompt}
+        --- CONTEXTO DE LA BASE DE CONOCIMIENTO ---
+        ${knowledgeContext}
+        --- FIN DEL CONTEXTO ---
+        --- CONTEXTO DEL CALENDARIO ---
+        Resumen: ${calendarContext.summary}
+        Eventos: ${JSON.stringify(calendarContext.events, null, 2)}
+        --- FIN DEL CONTEXTO ---
+      `;
+      const chat = model.startChat({
+        history: chatHistory,
+        systemInstruction: finalSystemPrompt,
+      });
+      const result = await chat.sendMessage(prompt);
+      responseText = result.response.text();
     }
 
     const { data: profileData } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
