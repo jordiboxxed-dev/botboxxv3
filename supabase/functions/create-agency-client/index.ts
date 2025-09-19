@@ -49,6 +49,7 @@ serve(async (req) => {
     }
 
     // 4. Invitar al nuevo usuario por email, lo que le permite establecer su contraseña
+    const appUrl = Deno.env.get("APP_URL") || 'https://botboxxv3.vercel.app';
     const { data: newUser, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
@@ -56,7 +57,7 @@ serve(async (req) => {
           first_name: firstName,
           last_name: lastName,
         },
-        redirectTo: 'https://botboxxv3.vercel.app/login',
+        redirectTo: `${appUrl}/login`,
       }
     );
 
