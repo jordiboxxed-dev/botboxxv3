@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4';
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
+import * as cheerio from "https://esm.sh/cheerio@1.0.0-rc.12";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,36 +38,37 @@ async function scrapeWebsite(startUrl) {
       }
 
       const html = await response.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      if (!doc) {
-        console.log(`Failed to parse HTML for ${currentUrl}`);
-        continue;
+      const $ = cheerio.load(html);
+
+      // Remove unwanted elements to get cleaner text
+      $('script, style, nav, footer, header, aside').remove();
+
+      const pageTitle = $('title').text() || '';
+      const mainContent = $('body').text();
+      const cleanedText = mainContent.replace(/\s\s+/g, ' ').trim();
+      
+      if (cleanedText) {
+        allTextContent += `--- Contenido de ${currentUrl} (Título: ${pageTitle}) ---\n${cleanedText}\n\n`;
       }
 
-      const pageTitle = doc.querySelector('title')?.textContent || '';
-      const mainContent = doc.body?.innerText || '';
-      
-      allTextContent += `--- Contenido de ${currentUrl} (Título: ${pageTitle}) ---\n${mainContent}\n\n`;
-
-      const links = doc.querySelectorAll('a');
-      for (const link of links) {
-        const href = link.getAttribute('href');
-        if (!href) continue;
+      $('a').each((i, link) => {
+        const href = $(link).attr('href');
+        if (!href) return;
 
         let nextUrl;
         try {
           nextUrl = new URL(href, currentUrl).href;
         } catch (e) {
-          continue;
+          return;
         }
 
         if (nextUrl.startsWith(baseUrl) && !visitedUrls.has(nextUrl) && !urlQueue.includes(nextUrl)) {
-          // Evitar enlaces a archivos y anclas
-          if (!nextUrl.match(/\.(pdf|jpg|png|zip|css|js)$/i) && !nextUrl.includes('#')) {
+          // Avoid links to files and anchors
+          if (!nextUrl.match(/\.(pdf|jpg|png|zip|css|js|xml|json)$/i) && !nextUrl.includes('#')) {
             urlQueue.push(nextUrl);
           }
         }
-      }
+      });
     } catch (error) {
       console.error(`Failed to scrape ${currentUrl}:`, error.message);
     }
