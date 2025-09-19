@@ -8,17 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Function to generate a random password
-const generatePassword = (length = 12) => {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -59,23 +48,23 @@ serve(async (req) => {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Generate a temporary password
-    const temporaryPassword = generatePassword();
-
-    // 5. Create the new user with email and password
-    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    // 4. Invite the user by email. This creates the user and sends an invite link.
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
-      password: temporaryPassword,
-      email_confirm: true, // Auto-confirm email since we are creating them
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
+      {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+        redirectTo: `${Deno.env.get("APP_URL")}/auth/callback`
       }
-    });
+    );
 
-    if (createUserError) throw createUserError;
+    if (inviteError) throw inviteError;
 
-    // 6. Update the new user's profile (created by the handle_new_user trigger)
+    const newUserId = inviteData.user.id;
+
+    // 5. Update the new user's profile (created by the handle_new_user trigger)
     const { error: updateProfileError } = await supabaseAdmin
       .from('profiles')
       .update({
@@ -83,21 +72,17 @@ serve(async (req) => {
         agency_id: ownerProfile.agency_id,
         plan: 'agency_client'
       })
-      .eq('id', newUser.user.id);
+      .eq('id', newUserId);
 
     if (updateProfileError) {
-      // If updating the profile fails, delete the auth user to prevent orphaned data
-      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      // Rollback: delete the invited user if profile update fails
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
       throw updateProfileError;
     }
 
-    // 7. Send success response with the temporary credentials
+    // 6. Send success response
     return new Response(JSON.stringify({ 
-      message: "Cliente creado exitosamente.",
-      credentials: {
-        email: newUser.user.email,
-        password: temporaryPassword
-      }
+      message: `Cliente invitado exitosamente. Se ha enviado un correo a ${email} para que configure su cuenta.`
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
