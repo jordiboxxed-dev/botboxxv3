@@ -23,6 +23,7 @@ import Billing from "./pages/Billing";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import AgencyDashboard from "./pages/AgencyDashboard";
 import AgencyProtectedRoute from "./components/auth/AgencyProtectedRoute";
+import AgencyClientDetail from "./pages/AgencyClientDetail";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,14 @@ const App = () => {
                   element={
                     <AgencyProtectedRoute>
                       <AgencyDashboard />
+                    </AgencyProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/agency/client/:clientId" 
+                  element={
+                    <AgencyProtectedRoute>
+                      <AgencyClientDetail />
                     </AgencyProtectedRoute>
                   } 
                 />

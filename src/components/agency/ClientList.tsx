@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, User } from "lucide-react";
+import { PlusCircle, User, ChevronRight } from "lucide-react";
 import { CreateClientDialog } from "@/components/agency/CreateClientDialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
 interface Client {
     id: string;
@@ -21,6 +21,7 @@ export const ClientList = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const navigate = useNavigate();
 
     const fetchClients = useCallback(async () => {
         setIsLoading(true);
@@ -75,43 +76,41 @@ export const ClientList = () => {
                             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-white/20 hover:bg-transparent">
-                                    <TableHead className="text-gray-200">Nombre</TableHead>
-                                    <TableHead className="text-gray-200">Email</TableHead>
-                                    <TableHead className="text-gray-200 text-center">Agentes</TableHead>
-                                    <TableHead className="text-right"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {clients.length > 0 ? clients.map((client) => (
-                                    <TableRow key={client.id} className="border-white/10">
-                                        <TableCell className="font-medium text-gray-100">{client.first_name} {client.last_name}</TableCell>
-                                        <TableCell className="text-gray-300">{client.email}</TableCell>
-                                        <TableCell className="text-center text-gray-300">{client.agent_count}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem disabled>Gestionar Agentes</DropdownMenuItem>
-                                                    <DropdownMenuItem disabled>Eliminar Cliente</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                        <div className="border border-white/10 rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-b-white/10 hover:bg-transparent">
+                                        <TableHead className="text-gray-200">Nombre</TableHead>
+                                        <TableHead className="text-gray-200">Email</TableHead>
+                                        <TableHead className="text-gray-200 text-center">Agentes</TableHead>
+                                        <TableHead className="text-right"></TableHead>
                                     </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-gray-500 py-8">
-                                            <User className="mx-auto w-12 h-12 mb-4" />
-                                            Aún no has creado ningún cliente.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {clients.length > 0 ? clients.map((client) => (
+                                        <TableRow 
+                                            key={client.id} 
+                                            className="border-t-white/10 cursor-pointer hover:bg-white/5"
+                                            onClick={() => navigate(`/agency/client/${client.id}`)}
+                                        >
+                                            <TableCell className="font-medium text-gray-100">{client.first_name} {client.last_name}</TableCell>
+                                            <TableCell className="text-gray-300">{client.email}</TableCell>
+                                            <TableCell className="text-center text-gray-300">{client.agent_count}</TableCell>
+                                            <TableCell className="text-right">
+                                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                                                <User className="mx-auto w-12 h-12 mb-4" />
+                                                Aún no has creado ningún cliente.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>
