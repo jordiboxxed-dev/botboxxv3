@@ -57,7 +57,7 @@ serve(async (req) => {
           first_name: firstName,
           last_name: lastName,
         },
-        redirectTo: `${appUrl}/login`,
+        redirectTo: `${appUrl}/auth/callback`,
       }
     );
 
