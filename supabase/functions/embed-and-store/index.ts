@@ -29,18 +29,12 @@ function simpleChunkText(text, chunkSize = 756, chunkOverlap = 100) {
   return chunks.filter(chunk => chunk.trim().length > 0);
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+const processInBackground = async (sourceId, textContent) => {
   try {
-    const { sourceId, textContent } = await req.json();
-    console.log(`[embed-and-store] Iniciando proceso para sourceId: ${sourceId}`);
+    console.log(`[embed-and-store BG] Iniciando proceso para sourceId: ${sourceId}`);
     
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
-    if (!sourceId || !textContent) throw new Error("sourceId y textContent son requeridos.");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? '',
@@ -50,18 +44,16 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
 
-    console.log("[embed-and-store] 1. Fragmentando texto...");
+    console.log("[embed-and-store BG] 1. Fragmentando texto...");
     const chunks = simpleChunkText(textContent);
-    console.log(`[embed-and-store] Texto fragmentado en ${chunks.length} partes.`);
+    console.log(`[embed-and-store BG] Texto fragmentado en ${chunks.length} partes.`);
 
     if (chunks.length === 0) {
-      return new Response(JSON.stringify({ message: "No se encontró contenido procesable para guardar." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      console.log("[embed-and-store BG] No se encontró contenido procesable.");
+      return;
     }
 
-    console.log("[embed-and-store] 2. Generando embeddings...");
+    console.log("[embed-and-store BG] 2. Generando embeddings...");
     const BATCH_SIZE = 100;
     const allEmbeddings = [];
 
@@ -69,7 +61,7 @@ serve(async (req) => {
       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
-      console.log(`[embed-and-store] Procesando lote ${batchNumber}/${totalBatches}...`);
+      console.log(`[embed-and-store BG] Procesando lote ${batchNumber}/${totalBatches}...`);
       
       const embeddingsResponse = await embeddingModel.batchEmbedContents({
         requests: batchChunks.map(chunk => ({ 
@@ -79,7 +71,7 @@ serve(async (req) => {
       });
       allEmbeddings.push(...embeddingsResponse.embeddings);
     }
-    console.log(`[embed-and-store] Se generaron ${allEmbeddings.length} embeddings.`);
+    console.log(`[embed-and-store BG] Se generaron ${allEmbeddings.length} embeddings.`);
 
     if (allEmbeddings.length !== chunks.length) {
       throw new Error(`Inconsistencia en la generación de embeddings. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`);
@@ -91,21 +83,44 @@ serve(async (req) => {
       embedding: allEmbeddings[i].values,
     }));
 
-    console.log("[embed-and-store] 3. Guardando fragmentos en la base de datos...");
+    console.log("[embed-and-store BG] 3. Guardando fragmentos en la base de datos...");
     const { error } = await supabaseAdmin.from("knowledge_chunks").insert(newChunksToInsert);
     if (error) {
-      console.error("[embed-and-store] Error en la inserción a la base de datos:", error);
+      console.error("[embed-and-store BG] Error en la inserción a la base de datos:", error);
       throw error;
     }
 
-    const successMessage = `[embed-and-store] Proceso completado. Se guardaron ${chunks.length} fragmentos de conocimiento.`;
-    console.log(successMessage);
+    console.log(`[embed-and-store BG] Proceso completado. Se guardaron ${chunks.length} fragmentos.`);
+  } catch (error) {
+    console.error("[embed-and-store BG] Error fatal en el proceso de fondo:", error);
+  }
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { sourceId, textContent } = await req.json();
+    if (!sourceId || !textContent) {
+      return new Response(JSON.stringify({ error: "sourceId y textContent son requeridos." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // No esperar a que termine, se ejecuta en segundo plano
+    setTimeout(() => processInBackground(sourceId, textContent), 0);
+
+    // Responder inmediatamente al cliente
+    const successMessage = `El procesamiento del conocimiento ha comenzado. Se añadirá en segundo plano.`;
     return new Response(JSON.stringify({ message: successMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status: 202, // Accepted
     });
   } catch (error) {
-    console.error("[embed-and-store] Error fatal en la función:", error);
+    console.error("[embed-and-store] Error al iniciar la función:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

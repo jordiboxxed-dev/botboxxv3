@@ -166,7 +166,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       return;
     }
     setIsLoading(true);
-    setStatusMessage("1/3: Guardando fuente de conocimiento...");
+    setStatusMessage("1/2: Guardando fuente de conocimiento...");
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         showError("Usuario no autenticado.");
@@ -187,7 +187,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         return;
     }
 
-    setStatusMessage("2/3: Fragmentando texto y generando embeddings...");
+    setStatusMessage("2/2: Iniciando procesamiento en segundo plano...");
     try {
       const { error: embedError } = await supabase.functions.invoke("embed-and-store", {
         body: { sourceId: sourceData.id, textContent },
@@ -195,15 +195,13 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
 
       if (embedError) throw new Error(embedError.message);
 
-      setStatusMessage("3/3: ¡Proceso completado!");
-      showSuccess("Fuente de conocimiento añadida y procesada.");
+      showSuccess("¡Procesamiento iniciado! El conocimiento estará disponible en unos minutos.");
       onSourceAdded();
       handleClose();
     } catch (err) {
-      showError("Error al procesar el conocimiento: " + (err as Error).message);
+      showError("Error al iniciar el procesamiento: " + (err as Error).message);
       // Si falla el procesamiento, eliminamos la fuente que creamos para no dejar datos huérfanos.
       await supabase.from("knowledge_sources").delete().eq("id", sourceData.id);
-    } finally {
       setIsLoading(false);
       setStatusMessage("");
     }
