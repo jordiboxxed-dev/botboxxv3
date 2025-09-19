@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 interface CreateClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClientCreated: () => void;
+  onClientCreated: (credentials: { email: string; tempPassword: string }) => void;
 }
 
 export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: CreateClientDialogProps) => {
@@ -48,7 +48,7 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
 
       showSuccess(data.message);
       resetForm();
-      onClientCreated();
+      onClientCreated({ email: data.email, tempPassword: data.tempPassword });
       onOpenChange(false);
     } catch (error) {
       showError("Error al crear el cliente: " + (error as Error).message);
@@ -63,7 +63,7 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
         <DialogHeader>
           <DialogTitle>Crear Nuevo Cliente</DialogTitle>
           <DialogDescription>
-            Se creará una nueva cuenta para tu cliente y se le enviará una invitación por correo electrónico para que establezca su contraseña.
+            Se creará una nueva cuenta para tu cliente con una contraseña temporal que deberás compartir de forma segura.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">

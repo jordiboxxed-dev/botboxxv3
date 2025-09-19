@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ClientCredentialsDialog } from "@/components/agency/ClientCredentialsDialog";
 
 interface Client {
     id: string;
@@ -32,6 +33,7 @@ export const ClientList = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [newClientCredentials, setNewClientCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
     const navigate = useNavigate();
 
     const fetchClients = useCallback(async () => {
@@ -79,6 +81,11 @@ export const ClientList = () => {
         } catch (error) {
             showError("Error al eliminar el cliente: " + (error as Error).message);
         }
+    };
+
+    const handleClientCreated = (credentials: { email: string; tempPassword: string }) => {
+        fetchClients();
+        setNewClientCredentials(credentials);
     };
 
     return (
@@ -176,7 +183,12 @@ export const ClientList = () => {
             <CreateClientDialog
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}
-                onClientCreated={fetchClients}
+                onClientCreated={handleClientCreated}
+            />
+            <ClientCredentialsDialog
+                open={!!newClientCredentials}
+                onOpenChange={() => setNewClientCredentials(null)}
+                credentials={newClientCredentials}
             />
         </>
     );

@@ -48,28 +48,29 @@ serve(async (req) => {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Invitar al nuevo usuario por email, lo que le permite establecer su contraseña
-    const appUrl = Deno.env.get("APP_URL") || 'https://botboxxv3.vercel.app';
-    const { data: newUser, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    // 4. Generar una contraseña temporal
+    const tempPassword = `temp_${crypto.randomUUID().slice(0, 10)}`;
+
+    // 5. Crear al nuevo usuario directamente con la contraseña temporal
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
-        redirectTo: `${appUrl}/auth/callback`,
+      password: tempPassword,
+      email_confirm: true, // La cuenta es creada por una fuente confiable (dueño de agencia)
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
       }
-    );
+    });
 
-    if (inviteError) throw inviteError;
+    if (createError) throw createError;
 
-    // 5. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
+    // 6. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
     const { error: updateProfileError } = await supabaseAdmin
       .from('profiles')
       .update({
-        role: 'client', // Asignar el rol 'client'
-        agency_id: ownerProfile.agency_id, // Vincular a la agencia del dueño
-        plan: 'agency_client' // Asignar un plan específico para clientes de agencia
+        role: 'client',
+        agency_id: ownerProfile.agency_id,
+        plan: 'agency_client'
       })
       .eq('id', newUser.user.id);
 
@@ -79,14 +80,18 @@ serve(async (req) => {
       throw updateProfileError;
     }
 
-    // 6. Enviar respuesta de éxito
-    return new Response(JSON.stringify({ message: "Cliente creado exitosamente. Se ha enviado una invitación a su email." }), {
+    // 7. Enviar respuesta de éxito con las credenciales temporales
+    return new Response(JSON.stringify({ 
+      message: "Cliente creado exitosamente.",
+      email: email,
+      tempPassword: tempPassword
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    console.error("Error en create-agency-client:", error);
+    console.error("Error in create-agency-client:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
