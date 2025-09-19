@@ -48,17 +48,19 @@ serve(async (req) => {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Crear el nuevo usuario con una invitación por email
-    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    // 4. Invitar al nuevo usuario por email, lo que le permite establecer su contraseña
+    const { data: newUser, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
-      email_confirm: true, // El cliente recibirá un email para confirmar y establecer su contraseña
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
+      {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+        redirectTo: 'https://botboxx-demov2.vercel.app/login',
       }
-    });
+    );
 
-    if (createUserError) throw createUserError;
+    if (inviteError) throw inviteError;
 
     // 5. Actualizar el perfil del nuevo usuario (creado por el trigger handle_new_user)
     const { error: updateProfileError } = await supabaseAdmin
