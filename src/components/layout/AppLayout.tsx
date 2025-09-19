@@ -43,11 +43,32 @@ export const AppLayout = () => {
       return { agents: [], error: 'No user' };
     }
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    const isAdmin = profile?.role === 'admin';
+    const { data: profile, error: profileError } = await supabase.from('profiles').select('role, agency_id').eq('id', user.id).single();
+    if (profileError) {
+      showError("No se pudo cargar tu perfil de usuario.");
+      return { agents: [], error: profileError.message };
+    }
 
     let query = supabase.from('agents').select('*');
-    if (!isAdmin) {
+    
+    if (profile.role === 'admin') {
+      // Admin ve todos los agentes
+    } else if (profile.role === 'agency_owner' && profile.agency_id) {
+      // Dueño de agencia ve los agentes de todos los usuarios en su agencia
+      const { data: agencyUsers, error: agencyUsersError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('agency_id', profile.agency_id);
+      
+      if (agencyUsersError) {
+        showError("No se pudieron cargar los clientes de la agencia.");
+        return { agents: [], error: agencyUsersError.message };
+      }
+      
+      const userIds = agencyUsers.map(u => u.id);
+      query = query.in('user_id', userIds);
+    } else {
+      // Usuario normal solo ve sus propios agentes
       query = query.eq('user_id', user.id);
     }
     
