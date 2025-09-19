@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bot, PlusCircle, LogOut, UserCog } from "lucide-react";
+import { Bot, PlusCircle, LogOut, UserCog, Briefcase } from "lucide-react";
 import { motion } from "framer-motion";
 import { RoiDashboard } from "@/components/dashboard/RoiDashboard";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +50,7 @@ const Dashboard = () => {
   const hasAgents = (usageInfo?.agentsCreated ?? 0) > 0;
   const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
   const canViewRoi = usageInfo && (usageInfo.plan === 'pro' || usageInfo.plan === 'premium' || usageInfo.role === 'admin');
+  const isAgencyOwner = usageInfo?.role === 'agency_owner';
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white p-4 pt-8">
@@ -67,6 +68,14 @@ const Dashboard = () => {
             <p className="text-lg text-gray-400">Gestiona y crea tus agentes de IA.</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {isAgencyOwner && (
+              <Link to="/agency" className="w-full sm:w-auto">
+                <Button variant="default" className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700">
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Panel de Agencia
+                </Button>
+              </Link>
+            )}
             <Link to="/account" className="w-full sm:w-auto">
               <Button variant="secondary" className="w-full sm:w-auto">
                 <UserCog className="w-4 h-4 mr-2" />
