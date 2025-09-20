@@ -16,6 +16,7 @@ import { ConversationHistory } from "@/components/agents/ConversationHistory";
 import { ToolManager } from "@/components/tools/ToolManager";
 import { useUsage } from "@/hooks/useUsage";
 import { cn } from "@/lib/utils";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 type Agent = DbAgent | MockAgent;
 
@@ -37,6 +38,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
   const [isEmbedDialogOpen, setIsEmbedDialogOpen] = useState(false);
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const { usageInfo } = useUsage();
+  const { isImpersonating } = useImpersonation();
 
   const plansWithTools = ['trial', 'pro', 'premium', 'admin'];
   const canUseTools = usageInfo && (plansWithTools.includes(usageInfo.plan) || usageInfo.role === 'admin');
@@ -198,7 +200,10 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       {selectedAgent ? (
         <>
           <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
-            <div className="flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6">
+            <div className={cn(
+              "flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6",
+              isImpersonating && "pb-28"
+            )}>
               <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   {'avatar_url' in selectedAgent && selectedAgent.avatar_url ? (
