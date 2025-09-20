@@ -2,7 +2,7 @@ import { useUsage } from '@/hooks/useUsage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck, CreditCard } from 'lucide-react';
+import { AlertCircle, Calendar, Bot, MessageSquare, ShieldCheck, CreditCard, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Link } from 'react-router-dom';
 
@@ -40,6 +40,44 @@ export const PlanUsageBanner = () => {
               <p className="text-sm text-gray-400 mt-1">
                 Tienes acceso ilimitado a todas las funcionalidades para pruebas.
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (plan === 'agency') {
+    const agentPercentage = agentLimit > 0 ? (agentsCreated / agentLimit) * 100 : 0;
+    const messagePercentage = messageLimit > 0 ? (messagesSent / messageLimit) * 100 : 0;
+    return (
+      <Card className="bg-black/30 border-purple-400/50 text-white w-full max-w-4xl">
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <CardTitle className="text-xl font-bold capitalize">Plan Agency</CardTitle>
+              <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                Bienvenido a tu imperio digital
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-black/20 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="text-gray-300 flex items-center gap-2 font-medium"><Bot className="w-4 h-4" /> Uso de Agentes</span>
+                <span className="font-semibold">{agentsCreated} / {agentLimit}</span>
+              </div>
+              <Progress value={agentPercentage} className="h-2" />
+            </div>
+            <div className="bg-black/20 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="text-gray-300 flex items-center gap-2 font-medium"><MessageSquare className="w-4 h-4" /> Mensajes (este mes)</span>
+                <span className="font-semibold">{messagesSent} / {messageLimit}</span>
+              </div>
+              <Progress value={messagePercentage} className="h-2" />
             </div>
           </div>
         </CardContent>

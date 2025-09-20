@@ -92,6 +92,7 @@ export const useUsage = () => {
           case 'trial': return 150;
           case 'pro': return 1000;
           case 'premium': return 10000;
+          case 'agency': return 10000;
           default: return Infinity;
         }
       };
@@ -100,6 +101,7 @@ export const useUsage = () => {
         switch (plan) {
           case 'trial': return 1;
           case 'pro': return 2;
+          case 'agency': return 2;
           default: return Infinity;
         }
       };
