@@ -201,7 +201,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
         <>
           <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
             <div className={cn(
-              "flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6",
+              "flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6 min-w-0",
               isImpersonating && "pb-28"
             )}>
               <header className="p-4 bg-black/20 backdrop-blur-lg border-b border-white/10 rounded-t-xl flex justify-between items-center gap-4">
@@ -255,7 +255,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
                     <ToolManager />
                   </TabsContent>
                 )}
-                <TabsContent value="conversations" className="flex-1 mt-2">
+                <TabsContent value="conversations" className="flex-1 mt-4">
                    <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-lg border border-white/10 rounded-xl h-full">
                       <ConversationHistory agentId={selectedAgent.id} />
                    </div>
