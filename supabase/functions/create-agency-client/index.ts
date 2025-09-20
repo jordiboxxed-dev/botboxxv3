@@ -48,21 +48,27 @@ serve(async (req) => {
       throw new Error("Nombre, apellido y email son requeridos.");
     }
 
-    // 4. Invite the user by email. This creates the user and sends an invite link.
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    // 4. Generate a temporary password and create the user
+    const temporaryPassword = `temp_${Math.random().toString(36).substring(2, 10)}`;
+    
+    const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
-        redirectTo: `${Deno.env.get("APP_URL")}/auth/callback`
+      password: temporaryPassword,
+      email_confirm: true, // The user is created and confirmed immediately
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
       }
-    );
+    });
 
-    if (inviteError) throw inviteError;
+    if (createError) {
+      if (createError.message.includes('User already registered')) {
+        throw new Error('Ya existe un usuario con este correo electrónico.');
+      }
+      throw createError;
+    }
 
-    const newUserId = inviteData.user.id;
+    const newUserId = createData.user.id;
 
     // 5. Update the new user's profile (created by the handle_new_user trigger)
     const { error: updateProfileError } = await supabaseAdmin
@@ -75,14 +81,15 @@ serve(async (req) => {
       .eq('id', newUserId);
 
     if (updateProfileError) {
-      // Rollback: delete the invited user if profile update fails
+      // Rollback: delete the created user if profile update fails
       await supabaseAdmin.auth.admin.deleteUser(newUserId);
       throw updateProfileError;
     }
 
-    // 6. Send success response
+    // 6. Send success response with the temporary password
     return new Response(JSON.stringify({ 
-      message: `Cliente invitado exitosamente. Se ha enviado un correo a ${email} para que configure su cuenta.`
+      message: `Cliente creado exitosamente.`,
+      temporaryPassword: temporaryPassword
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

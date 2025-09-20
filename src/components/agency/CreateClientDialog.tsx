@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { showError, showSuccess } from "@/utils/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, Copy } from "lucide-react";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -25,11 +25,30 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [createdClientInfo, setCreatedClientInfo] = useState<{ email: string; temporaryPassword: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const resetForm = () => {
     setFirstName("");
     setLastName("");
     setEmail("");
+    setCreatedClientInfo(null);
+    setCopied(false);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    // Delay reset to allow for closing animation
+    setTimeout(resetForm, 300);
+  };
+
+  const handleCopyPassword = () => {
+    if (createdClientInfo) {
+      navigator.clipboard.writeText(createdClientInfo.temporaryPassword);
+      setCopied(true);
+      showSuccess("Contraseña copiada al portapapeles.");
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleCreateClient = async () => {
@@ -47,9 +66,8 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
       if (data.error) throw new Error(data.error);
 
       showSuccess(data.message);
-      resetForm();
+      setCreatedClientInfo({ email, temporaryPassword: data.temporaryPassword });
       onClientCreated();
-      onOpenChange(false);
 
     } catch (error) {
       showError("Error al crear el cliente: " + (error as Error).message);
@@ -59,36 +77,65 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="bg-gray-900/80 backdrop-blur-lg border-white/10 text-white">
         <DialogHeader>
-          <DialogTitle>Invitar Nuevo Cliente</DialogTitle>
+          <DialogTitle>{createdClientInfo ? "Cliente Creado Exitosamente" : "Crear Nuevo Cliente"}</DialogTitle>
           <DialogDescription>
-            Tu cliente recibirá un correo electrónico para configurar su cuenta y establecer su contraseña.
+            {createdClientInfo 
+              ? "Guarda esta contraseña temporal. El cliente deberá cambiarla en su primer inicio de sesión."
+              : "Se creará una cuenta para tu cliente con una contraseña temporal."
+            }
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        
+        {createdClientInfo ? (
+          <div className="py-4 space-y-4">
             <div>
-              <Label htmlFor="firstName">Nombre</Label>
-              <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Label>Email del Cliente</Label>
+              <p className="font-mono text-sm p-2 bg-black/20 rounded-md">{createdClientInfo.email}</p>
             </div>
             <div>
-              <Label htmlFor="lastName">Apellido</Label>
-              <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Label>Contraseña Temporal</Label>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 font-mono text-sm p-2 bg-black/20 rounded-md">{createdClientInfo.temporaryPassword}</p>
+                <Button size="icon" variant="outline" onClick={handleCopyPassword}>
+                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
           </div>
-          <div>
-            <Label htmlFor="email">Email del Cliente</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        ) : (
+          <div className="py-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">Nombre</Label>
+                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="lastName">Apellido</Label>
+                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="email">Email del Cliente</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
           </div>
-        </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
-          <Button onClick={handleCreateClient} disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Enviar Invitación
-          </Button>
+          {createdClientInfo ? (
+            <Button onClick={handleClose}>Cerrar</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
+              <Button onClick={handleCreateClient} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear Cliente
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
