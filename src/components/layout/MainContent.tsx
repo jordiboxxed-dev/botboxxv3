@@ -185,7 +185,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="flex-1 flex flex-col h-screen relative"
+      className="flex-1 flex flex-col h-screen relative min-w-0"
     >
       {onMenuClick && (
         <Button
@@ -199,7 +199,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
       )}
       {selectedAgent ? (
         <>
-          <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto">
+          <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
             <div className={cn(
               "flex-1 flex flex-col p-4 pt-16 lg:pt-6 lg:p-6 min-w-0",
               isImpersonating && "pb-28"
@@ -240,7 +240,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
                 <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
               </div>
             </div>
-            <div className="w-full lg:w-96 p-4 lg:p-6 flex flex-col">
+            <div className="w-full lg:w-96 lg:flex-shrink-0 p-4 lg:p-6 flex flex-col">
               <Tabs defaultValue="knowledge" className="w-full flex-1 flex flex-col">
                 <TabsList className={cn("grid w-full", canUseTools ? "grid-cols-3" : "grid-cols-2")}>
                   <TabsTrigger value="knowledge"><BookOpen className="w-4 h-4 mr-2" />Conocimiento</TabsTrigger>
