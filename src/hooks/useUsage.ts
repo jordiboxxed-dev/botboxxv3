@@ -99,7 +99,7 @@ export const useUsage = () => {
       const getAgentLimit = () => {
         switch (plan) {
           case 'trial': return 1;
-          case 'pro': return 5;
+          case 'pro': return 2;
           default: return Infinity;
         }
       };

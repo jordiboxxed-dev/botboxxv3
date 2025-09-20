@@ -76,7 +76,7 @@ serve(async (req) => {
       .update({
         role: 'client',
         agency_id: ownerProfile.agency_id,
-        plan: 'agency_client'
+        plan: 'trial'
       })
       .eq('id', newUserId);
 
