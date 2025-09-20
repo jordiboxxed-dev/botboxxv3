@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils";
 import React, { useEffect } from "react";
 import { showError, showSuccess } from "@/utils/toast";
 import { UpgradeToProBanner } from "@/components/dashboard/UpgradeToProBanner";
+import { useTour } from "@/contexts/TourContext";
 
 const Dashboard = () => {
   const { usageInfo, isLoading: isLoadingUsage } = useUsage();
+  const { startTour } = useTour();
   const templatesCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(59, 130, 246, 0.4)" });
   const createCardProps = useInteractiveCard<HTMLDivElement>({ glowColor: "rgba(52, 211, 153, 0.4)" });
   const location = useLocation();
@@ -34,6 +36,12 @@ const Dashboard = () => {
       window.history.replaceState({}, document.title, "/dashboard");
     }
   }, [location]);
+
+  useEffect(() => {
+    if (!isLoadingUsage && usageInfo && usageInfo.agentsCreated === 0 && !localStorage.getItem('tourCompleted')) {
+      startTour();
+    }
+  }, [isLoadingUsage, usageInfo, startTour]);
 
   if (isLoadingUsage) {
     return (
@@ -76,7 +84,7 @@ const Dashboard = () => {
                 </Button>
               </Link>
             )}
-            <Link to="/account" className="w-full sm:w-auto">
+            <Link to="/account" className="w-full sm:w-auto" id="tour-account-button">
               <Button variant="secondary" className="w-full sm:w-auto">
                 <UserCog className="w-4 h-4 mr-2" />
                 Mi Cuenta
@@ -104,7 +112,7 @@ const Dashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <Link to="/templates" className="block h-full">
+              <Link to="/templates" className="block h-full" id="tour-templates-link">
                 <div
                   ref={templatesCardProps.ref}
                   {...templatesCardProps}

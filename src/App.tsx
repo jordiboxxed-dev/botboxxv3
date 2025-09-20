@@ -26,6 +26,8 @@ import AgencyProtectedRoute from "./components/auth/AgencyProtectedRoute";
 import AgencyClientDetail from "./pages/AgencyClientDetail";
 import Home from "./pages/Home";
 import { ImpersonationBanner } from "./components/layout/ImpersonationBanner";
+import { TourProvider } from "./contexts/TourContext";
+import { OnboardingTour } from "./components/onboarding/OnboardingTour";
 
 const queryClient = new QueryClient();
 
@@ -58,58 +60,61 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            {/* Rutas públicas */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/embed/agent/:agentId" element={<Embed />} />
-            <Route path="/chat/:agentId" element={<PublicAgentPage />} />
+          <TourProvider>
+            <ScrollToTop />
+            <OnboardingTour />
+            <Routes>
+              {/* Rutas públicas */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/embed/agent/:agentId" element={<Embed />} />
+              <Route path="/chat/:agentId" element={<PublicAgentPage />} />
 
-            {!session ? (
-              <>
-                <Route path="/" element={<Navigate to="/login" />} />
-                <Route path="*" element={<Login />} />
-              </>
-            ) : (
-              <>
-                <Route path="/" element={<Home />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/billing" element={<Billing />} />
-                <Route path="/templates" element={<Templates />} />
-                <Route path="/create-agent" element={<CreateAgent />} />
-                <Route path="/agent/:agentId" element={<AppLayout />} />
-                <Route path="/agent/:agentId/edit" element={<EditAgent />} />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <ProtectedRoute>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/agency" 
-                  element={
-                    <AgencyProtectedRoute>
-                      <AgencyDashboard />
-                    </AgencyProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/agency/client/:clientId" 
-                  element={
-                    <AgencyProtectedRoute>
-                      <AgencyClientDetail />
-                    </AgencyProtectedRoute>
-                  } 
-                />
-                <Route path="*" element={<NotFound />} />
-              </>
-            )}
-          </Routes>
-          {session && <ImpersonationBanner />}
+              {!session ? (
+                <>
+                  <Route path="/" element={<Navigate to="/login" />} />
+                  <Route path="*" element={<Login />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/account" element={<Account />} />
+                  <Route path="/billing" element={<Billing />} />
+                  <Route path="/templates" element={<Templates />} />
+                  <Route path="/create-agent" element={<CreateAgent />} />
+                  <Route path="/agent/:agentId" element={<AppLayout />} />
+                  <Route path="/agent/:agentId/edit" element={<EditAgent />} />
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <ProtectedRoute>
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/agency" 
+                    element={
+                      <AgencyProtectedRoute>
+                        <AgencyDashboard />
+                      </AgencyProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/agency/client/:clientId" 
+                    element={
+                      <AgencyProtectedRoute>
+                        <AgencyClientDetail />
+                      </AgencyProtectedRoute>
+                    } 
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </>
+              )}
+            </Routes>
+            {session && <ImpersonationBanner />}
+          </TourProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

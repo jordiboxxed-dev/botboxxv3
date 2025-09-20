@@ -218,7 +218,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
                     <p className="text-sm text-gray-400 truncate">{selectedAgent.description}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div id="tour-share-buttons" className="flex items-center gap-2 flex-shrink-0">
                   <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" title="Limpiar historial de chat" onClick={onClearChat}>
                     <MessageSquareX className="w-5 h-5" />
                   </Button>
@@ -235,12 +235,12 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
                   </Link>
                 </div>
               </header>
-              <div className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">
+              <div id="tour-chat-input" className="flex-1 flex flex-col bg-black/10 rounded-b-xl overflow-hidden">
                 <MessageList messages={messages} isLoading={isLoading} />
                 <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
               </div>
             </div>
-            <div className="w-full lg:w-96 lg:flex-shrink-0 p-4 lg:p-6 flex flex-col">
+            <div id="tour-knowledge-panel" className="w-full lg:w-96 lg:flex-shrink-0 p-4 lg:p-6 flex flex-col">
               <Tabs defaultValue="knowledge" className="w-full flex-1 flex flex-col">
                 <TabsList className={cn("grid w-full", canUseTools ? "grid-cols-3" : "grid-cols-2")}>
                   <TabsTrigger value="knowledge"><BookOpen className="w-4 h-4 mr-2" />Conocimiento</TabsTrigger>
