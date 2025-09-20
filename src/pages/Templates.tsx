@@ -153,6 +153,7 @@ const Templates = () => {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button 
+                id="tour-create-from-scratch"
                 onClick={() => navigate('/create-agent')} 
                 variant="outline" 
                 className="flex items-center gap-2"
@@ -200,6 +201,7 @@ const Templates = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockAgents.map((agent, index) => (
             <TemplateCard
+              id={index === 0 ? 'tour-first-template' : undefined}
               key={agent.id}
               agent={agent}
               index={index}

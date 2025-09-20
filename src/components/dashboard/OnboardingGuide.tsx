@@ -23,7 +23,7 @@ export const OnboardingGuide = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-        <Link to="/templates" className="block h-full">
+        <Link to="/templates" className="block h-full" id="tour-templates-link">
           <div 
             {...blueCardProps}
             ref={blueCardProps.ref}

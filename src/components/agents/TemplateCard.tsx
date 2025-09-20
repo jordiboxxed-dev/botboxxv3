@@ -12,13 +12,15 @@ interface TemplateCardProps {
   onPreview: (agent: TemplateAgent) => void;
   onUseTemplate: (agent: TemplateAgent) => void;
   isCreationDisabled?: boolean;
+  id?: string;
 }
 
-export const TemplateCard = ({ agent, index, onPreview, onUseTemplate, isCreationDisabled = false }: TemplateCardProps) => {
+export const TemplateCard = ({ agent, index, onPreview, onUseTemplate, isCreationDisabled = false, id }: TemplateCardProps) => {
   const cardProps = useInteractiveCard<HTMLDivElement>();
 
   return (
     <motion.div
+      id={id}
       {...cardProps}
       ref={cardProps.ref}
       key={agent.id}

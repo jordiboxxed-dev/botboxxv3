@@ -25,34 +25,24 @@ export const OnboardingTour = () => {
     },
     {
       target: '#tour-templates-link',
-      content: 'Todo comienza aquí. Haz clic para explorar plantillas pre-configuradas o gestionar los agentes que ya has creado.',
+      content: 'Todo comienza aquí. Haz clic para explorar plantillas pre-configuradas para crear tu primer agente.',
       disableBeacon: true,
     },
     {
-      target: '#tour-system-prompt',
-      content: 'Este es el cerebro de tu agente. Aquí le dices quién es, cómo debe comportarse y qué tareas puede realizar. ¡Sé detallado!',
+      target: '#tour-first-template',
+      content: 'Esta es una plantilla. Puedes previsualizarla para ver sus instrucciones o usarla directamente para crear un agente basado en ella.',
       disableBeacon: true,
     },
     {
-      target: '#tour-knowledge-panel',
-      content: "Un agente inteligente necesita conocimiento. Haz clic en '+ Añadir' para 'alimentarlo' con el contenido de tu web, PDFs, o texto.",
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-chat-input',
-      content: '¡Es hora de probarlo! Escribe un mensaje aquí para conversar con tu agente y ver cómo responde.',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-share-buttons',
-      content: '¿Listo para que el mundo lo vea? Usa estos botones para obtener un enlace público o el código para incrustarlo en tu web.',
+      target: '#tour-create-from-scratch',
+      content: 'Si prefieres un control total, puedes crear un agente desde cero y definir toda su personalidad tú mismo.',
       disableBeacon: true,
     },
     {
       content: (
         <div>
-          <h3 className="text-lg font-bold">¡Misión Cumplida!</h3>
-          <p className="mt-2">Has completado los pasos esenciales. ¡Ahora el potencial es ilimitado!</p>
+          <h3 className="text-lg font-bold">¡Estás listo!</h3>
+          <p className="mt-2">Ahora crea tu primer agente. Al hacerlo, serás llevado a su panel de control donde podrás enseñarle, probarlo y compartirlo.</p>
         </div>
       ),
       placement: 'center',
@@ -61,7 +51,7 @@ export const OnboardingTour = () => {
   ];
 
   const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status, step, type, index } = data;
+    const { status, type, index } = data;
     const finishedStatuses: string[] = ['finished', 'skipped'];
 
     if (finishedStatuses.includes(status)) {
@@ -69,8 +59,8 @@ export const OnboardingTour = () => {
     }
 
     if (type === 'step:after') {
-      // Navegar a la página correcta para el siguiente paso
-      if (index === 2) { // Después de hacer clic en "Ver Agentes y Plantillas"
+      // After the "Templates" link step, navigate to the templates page
+      if (index === 2) { 
         navigate('/templates');
       }
     }
