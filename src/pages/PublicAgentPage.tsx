@@ -35,20 +35,21 @@ const PublicAgentPage = () => {
     }
 
     const fetchAgent = async () => {
-      const { data, error } = await supabase
-        .from("agents")
-        .select("*")
-        .eq("id", agentId)
-        .single();
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke("get-public-agent-config", {
+          body: { agentId },
+        });
 
-      if (error || !data) {
-        setError("No se pudo encontrar el agente o no está disponible.");
-      } else if (data.status !== 'active' || data.deleted_at) {
-        setError("Este agente no está activo actualmente.");
-      } else {
+        if (invokeError) throw invokeError;
+        if (data.error) throw new Error(data.error);
+        
         setAgent(data);
+      } catch (err) {
+        setError("No se pudo cargar la información del agente.");
+        console.error("Error fetching public agent config in PublicAgentPage:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchAgent();
