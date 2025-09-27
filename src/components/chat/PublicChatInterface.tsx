@@ -1,18 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { Bot } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-interface AgentConfig {
+export interface AgentConfig {
   name: string;
   company_name: string | null;
   widget_color: string;
@@ -20,38 +19,17 @@ interface AgentConfig {
   avatar_url: string | null;
 }
 
-export const PublicChatInterface = () => {
+interface PublicChatInterfaceProps {
+  agentConfig: AgentConfig;
+}
+
+export const PublicChatInterface = ({ agentConfig }: PublicChatInterfaceProps) => {
   const { agentId } = useParams<{ agentId: string }>();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: "assistant", content: agentConfig.widget_welcome_message || `¡Hola! Soy ${agentConfig.name}. ¿Cómo puedo ayudarte hoy?` }
+  ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
   const conversationIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!agentId) return;
-
-    const fetchAgentConfig = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("get-public-agent-config", {
-          body: { agentId },
-        });
-
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
-
-        setAgentConfig(data);
-        setMessages([
-          { role: "assistant", content: data.widget_welcome_message || `¡Hola! Soy ${data.name}. ¿Cómo puedo ayudarte hoy?` }
-        ]);
-      } catch (err) {
-        console.error("Error fetching agent info:", err);
-        showError("No se pudo cargar la información del agente.");
-        setMessages([{ role: "assistant", content: "Lo siento, no pude cargar la configuración de este agente." }]);
-      }
-    };
-
-    fetchAgentConfig();
-  }, [agentId]);
 
   const handleSendMessage = async (prompt: string) => {
     if (!agentId) return;
@@ -120,23 +98,6 @@ export const PublicChatInterface = () => {
       setIsLoading(false);
     }
   };
-
-  if (!agentConfig) {
-    return (
-      <div className="w-full max-w-[400px] h-full max-h-[600px] bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10">
-        <div className="p-4 flex items-center gap-3 border-b border-white/10">
-          <Skeleton className="w-12 h-12 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        </div>
-        <div className="flex-1 p-4 space-y-4">
-          <Skeleton className="h-16 w-3/4 rounded-lg" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10">

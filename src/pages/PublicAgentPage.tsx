@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { PublicChatInterface } from "@/components/chat/PublicChatInterface";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { Agent } from "@/components/layout/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bot, MessageSquare, X } from "lucide-react";
@@ -36,13 +36,21 @@ const PublicAgentPage = () => {
 
     const fetchAgent = async () => {
       try {
-        const { data, error: invokeError } = await supabase.functions.invoke("get-public-agent-config", {
-          body: { agentId },
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/get-public-agent-config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ agentId })
         });
 
-        if (invokeError) throw invokeError;
-        if (data.error) throw new Error(data.error);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
+        }
         
+        const data = await response.json();
         setAgent(data);
       } catch (err) {
         setError("No se pudo cargar la información del agente.");
@@ -91,7 +99,7 @@ const PublicAgentPage = () => {
       
       <div className={`fixed bottom-4 z-50 ${widgetPositionClass}`}>
         <AnimatePresence>
-          {isOpen && (
+          {isOpen && agent && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -99,7 +107,7 @@ const PublicAgentPage = () => {
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100dvh-5rem)] max-h-[600px] relative"
             >
-              <PublicChatInterface />
+              <PublicChatInterface agentConfig={agent} />
               <Button 
                 variant="ghost" 
                 size="icon" 
