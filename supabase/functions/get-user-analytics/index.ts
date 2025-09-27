@@ -127,17 +127,15 @@ serve(async (req) => {
 
     const conversationIds = conversations.map(c => c.id);
     
-    let messages = [];
+    let totalMessages = 0;
     if (conversationIds.length > 0) {
-        const { data: msgData, error: msgError } = await supabaseAdmin
+        const { count, error: msgError } = await supabaseAdmin
           .from('public_messages')
-          .select('id')
+          .select('*', { count: 'exact', head: true })
           .in('conversation_id', conversationIds);
         if (msgError) throw msgError;
-        messages = msgData;
+        totalMessages = count || 0;
     }
-
-    const totalMessages = messages.length;
     
     const totalInteractions = Math.floor(totalMessages / 2);
     const timeSavedMinutes = totalInteractions * AVG_MINUTES_SAVED_PER_INTERACTION;
