@@ -293,28 +293,7 @@ serve(async (req) => {
         throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
       }
     } else {
-      console.log("No webhook URL found. Using direct Gemini call.");
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      const chatHistory = (history || []).map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
-      const finalSystemPrompt = `
-        ${agentData.system_prompt}
-        --- CONTEXTO DE LA BASE DE CONOCIMIENTO ---
-        ${knowledgeContext}
-        --- FIN DEL CONTEXTO ---
-        --- CONTEXTO DEL CALENDARIO ---
-        Resumen: ${calendarContext.summary}
-        Eventos: ${JSON.stringify(calendarContext.events, null, 2)}
-        --- FIN DEL CONTEXTO ---
-      `;
-      const chat = model.startChat({
-        history: chatHistory,
-        systemInstruction: finalSystemPrompt,
-      });
-      const result = await chat.sendMessage(prompt);
-      responseText = result.response.text();
+      throw new Error("El agente no está configurado con una URL de webhook. Por favor, edita el agente y añade una URL de webhook válida para que pueda procesar las solicitudes.");
     }
 
     // --- Tool Execution Logic (runs for both webhook and direct call) ---
