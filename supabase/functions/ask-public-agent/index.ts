@@ -255,7 +255,14 @@ serve(async (req) => {
         }
     }
 
-    const calendarContext = await getCalendarEvents(agentOwnerId, supabaseAdmin);
+    const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
+    const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+
+    let calendarContext = { summary: "La herramienta de Google Calendar no está configurada por el propietario del agente.", events: [] };
+    if (googleClientId && googleClientSecret) {
+        calendarContext = await getCalendarEvents(agentOwnerId, supabaseAdmin);
+    }
+
     let responseText;
     let conversionData = null;
 
