@@ -34,10 +34,34 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
+    // --- START: MODIFIED LOGIC FOR AGENCY OWNERS ---
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role, agency_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) throw new Error("No se pudo obtener el perfil del usuario.");
+
+    let userIdsToQuery = [user.id]; // Default to the current user
+
+    if (profile.role === 'agency_owner' && profile.agency_id) {
+      const { data: agencyUsers, error: agencyUsersError } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('agency_id', profile.agency_id);
+      
+      if (agencyUsersError) throw new Error("No se pudieron cargar los clientes de la agencia.");
+      
+      // Query for the agency owner and all their clients
+      userIdsToQuery = agencyUsers.map(u => u.id);
+    }
+    // --- END: MODIFIED LOGIC FOR AGENCY OWNERS ---
+
     const { data: conversations, error: convError } = await supabaseAdmin
       .from('public_conversations')
       .select('id, created_at')
-      .eq('user_id', user.id);
+      .in('user_id', userIdsToQuery); // Use the determined list of user IDs
     if (convError) throw convError;
 
     const totalConversations = conversations.length;
@@ -47,7 +71,7 @@ serve(async (req) => {
     const { data: dailyConversions, error: dailyConversionError } = await supabaseAdmin
       .from('public_conversions')
       .select('created_at')
-      .eq('user_id', user.id)
+      .in('user_id', userIdsToQuery) // Use the determined list of user IDs
       .gte('created_at', thirtyDaysAgo);
     if (dailyConversionError) throw dailyConversionError;
 
@@ -83,7 +107,7 @@ serve(async (req) => {
     const { count: totalConversions, error: conversionError } = await supabaseAdmin
       .from('public_conversions')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      .in('user_id', userIdsToQuery); // Use the determined list of user IDs
     if (conversionError) throw conversionError;
 
     const autonomousResolutionRate = totalConversations > 0 ? (totalConversions / totalConversations) * 100 : 0;
@@ -102,12 +126,16 @@ serve(async (req) => {
     }
 
     const conversationIds = conversations.map(c => c.id);
-
-    const { data: messages, error: msgError } = await supabaseAdmin
-      .from('public_messages')
-      .select('id')
-      .in('conversation_id', conversationIds);
-    if (msgError) throw msgError;
+    
+    let messages = [];
+    if (conversationIds.length > 0) {
+        const { data: msgData, error: msgError } = await supabaseAdmin
+          .from('public_messages')
+          .select('id')
+          .in('conversation_id', conversationIds);
+        if (msgError) throw msgError;
+        messages = msgData;
+    }
 
     const totalMessages = messages.length;
     
