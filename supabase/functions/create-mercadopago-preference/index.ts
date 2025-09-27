@@ -37,6 +37,10 @@ serve(async (req) => {
         price = 297;
         title = "BotBoxx - Plan Premium";
         break;
+      case 'agency':
+        price = 497;
+        title = "BotBoxx - Plan Agencia";
+        break;
       default:
         throw new Error(`Plan '${plan}' no es válido para suscripción.`);
     }

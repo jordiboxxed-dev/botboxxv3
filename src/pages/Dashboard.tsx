@@ -57,7 +57,7 @@ const Dashboard = () => {
 
   const hasAgents = (usageInfo?.agentsCreated ?? 0) > 0;
   const agentLimitReached = usageInfo?.hasReachedAgentLimit ?? false;
-  const canViewRoi = usageInfo && (usageInfo.plan === 'pro' || usageInfo.plan === 'premium' || usageInfo.role === 'admin');
+  const canViewRoi = usageInfo && (usageInfo.plan === 'pro' || usageInfo.plan === 'premium' || usageInfo.plan === 'agency' || usageInfo.role === 'admin');
   const isAgencyOwner = usageInfo?.role === 'agency_owner';
 
   return (

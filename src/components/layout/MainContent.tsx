@@ -40,7 +40,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
   const { usageInfo } = useUsage();
   const { isImpersonating } = useImpersonation();
 
-  const plansWithTools = ['trial', 'pro', 'premium', 'admin'];
+  const plansWithTools = ['premium', 'agency'];
   const canUseTools = usageInfo && (plansWithTools.includes(usageInfo.plan) || usageInfo.role === 'admin');
 
   useEffect(() => {

@@ -5,7 +5,7 @@ import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, ArrowLeft, CreditCard, Zap, BarChart2 } from "lucide-react";
+import { Loader2, ArrowLeft, CreditCard, Zap, BarChart2, Briefcase } from "lucide-react";
 import { useUsage } from "@/hooks/useUsage";
 
 const Billing = () => {
@@ -64,7 +64,7 @@ const Billing = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
             <Skeleton className="h-10 w-10" />
             <Skeleton className="h-8 w-48" />
@@ -106,7 +106,7 @@ const Billing = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white">Facturación</h1>
@@ -133,7 +133,7 @@ const Billing = () => {
           </CardHeader>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {/* Plan Gratuito */}
           <Card className="bg-black/30 border-white/10">
             <CardHeader>
@@ -170,7 +170,7 @@ const Billing = () => {
           </Card>
 
           {/* Plan Premium */}
-          <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30 md:scale-105">
+          <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30">
             <CardHeader>
               <CardTitle className="text-white">Plan Premium</CardTitle>
               <CardDescription className="text-gray-300">Uso profesional</CardDescription>
@@ -187,6 +187,27 @@ const Billing = () => {
               </ul>
               <Button onClick={() => handleSubscribe('premium')} disabled={isProcessing || plan === 'premium' || plan === 'admin'} className="w-full bg-blue-600 hover:bg-blue-700">
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : plan === 'premium' ? "Plan Actual" : "Seleccionar"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Plan Agency */}
+          <Card className="bg-gradient-to-br from-purple-900/50 to-fuchsia-900/50 border-purple-500/30 md:scale-105">
+            <CardHeader>
+              <CardTitle className="text-white">Plan Agencia</CardTitle>
+              <CardDescription className="text-gray-300">Escala con tus clientes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white mb-4">$497<span className="text-lg text-gray-300">/mes</span></div>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center font-semibold text-purple-300"><Briefcase className="w-4 h-4 mr-2"/>Gestión de Clientes</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>2 agentes (cuenta agencia)</li>
+                <li className="flex items-center text-gray-200"><span className="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>10,000 mensajes/mes</li>
+                <li className="flex items-center font-semibold text-purple-300"><Zap className="w-4 h-4 mr-2"/>Herramientas y Webhooks</li>
+                <li className="flex items-center font-semibold text-purple-300"><BarChart2 className="w-4 h-4 mr-2"/>Panel de ROI y Analíticas</li>
+              </ul>
+              <Button onClick={() => handleSubscribe('agency')} disabled={isProcessing || plan === 'agency' || plan === 'admin'} className="w-full bg-purple-600 hover:bg-purple-700">
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : plan === 'agency' ? "Plan Actual" : "Seleccionar"}
               </Button>
             </CardContent>
           </Card>
