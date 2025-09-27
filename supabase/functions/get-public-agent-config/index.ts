@@ -33,6 +33,11 @@ serve(async (req) => {
 
     if (error) throw error;
     
+    // Handle case where agent is not found
+    if (!data) {
+      throw new Error("Agente no encontrado.");
+    }
+    
     // Verificar si el agente está activo y no ha sido eliminado
     if (data.status !== 'active' || data.deleted_at) {
       throw new Error("Este agente no está disponible públicamente.");
