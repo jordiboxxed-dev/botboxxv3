@@ -9,8 +9,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Bot, MessageSquare, ArrowLeft, Star, Clock, DollarSign } from "lucide-react";
+import { Users, Bot, MessageSquare, ArrowLeft, Clock, DollarSign, Building } from "lucide-react";
 import { motion } from "framer-motion";
 import { showError } from "@/utils/toast";
 import { format } from "date-fns";
@@ -32,13 +38,21 @@ interface UserStat {
   cost_saved: number;
 }
 
+interface Agency {
+  id: string;
+  name: string;
+  owner: UserStat;
+  clients: UserStat[];
+}
+
 interface AnalyticsData {
   totalUsers: number;
   totalAgents: number;
   totalMessages: number;
   totalTimeSaved: number;
   totalCostSaved: number;
-  usersWithStats: UserStat[];
+  agencies: Agency[];
+  independentUsers: UserStat[];
 }
 
 const StatCard = ({ title, value, icon, valueClassName }: { title: string; value: string | number; icon: React.ReactNode; valueClassName?: string }) => (
@@ -49,6 +63,49 @@ const StatCard = ({ title, value, icon, valueClassName }: { title: string; value
     </CardHeader>
     <CardContent>
       <div className={cn("text-2xl font-bold", valueClassName)}>{value}</div>
+    </CardContent>
+  </Card>
+);
+
+const UserTable = ({ users, title }: { users: UserStat[], title?: string }) => (
+  <Card className="bg-black/30 border-white/10 h-full">
+    {title && (
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+    )}
+    <CardContent className="p-0">
+      <div className="overflow-x-auto custom-scrollbar">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/20 hover:bg-transparent">
+              <TableHead className="text-gray-200">Nombre</TableHead>
+              <TableHead className="text-gray-200">Email</TableHead>
+              <TableHead className="text-gray-200">Registro</TableHead>
+              <TableHead className="text-gray-200 text-right">Agentes</TableHead>
+              <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
+              <TableHead className="text-gray-200 text-right">Tiempo Ahorrado</TableHead>
+              <TableHead className="text-gray-200 text-right">Coste Ahorrado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => {
+              const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+              return (
+                <TableRow key={user.id} className="border-white/10">
+                  <TableCell className="font-medium text-gray-100 whitespace-nowrap">{fullName || 'N/A'}</TableCell>
+                  <TableCell className="text-gray-300">{user.email}</TableCell>
+                  <TableCell className="text-gray-300 whitespace-nowrap">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
+                  <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
+                  <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
+                  <TableCell className="text-right text-green-400">{user.time_saved} min</TableCell>
+                  <TableCell className="text-right text-green-400">${user.cost_saved}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </CardContent>
   </Card>
 );
@@ -97,10 +154,6 @@ const AdminDashboard = () => {
     return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Error al cargar los datos.</div>;
   }
 
-  const subscribedUsers = data.usersWithStats
-    .filter(user => user.subscribed_at)
-    .sort((a, b) => new Date(b.subscribed_at!).getTime() - new Date(a.subscribed_at!).getTime());
-
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-8 text-white">
       <div className="max-w-7xl mx-auto">
@@ -132,101 +185,48 @@ const AdminDashboard = () => {
           <StatCard title="Coste Ahorrado (USD)" value={`$${data.totalCostSaved}`} icon={<DollarSign className="h-4 w-4 text-green-400" />} valueClassName="text-green-400" />
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="bg-black/30 border-white/10 h-full">
-              <CardHeader>
-                <CardTitle>Usuarios Registrados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-scroll custom-scrollbar">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20 hover:bg-transparent">
-                        <TableHead className="text-gray-200">Nombre</TableHead>
-                        <TableHead className="text-gray-200">Email</TableHead>
-                        <TableHead className="text-gray-200">Registro</TableHead>
-                        <TableHead className="text-gray-200 text-right">Agentes</TableHead>
-                        <TableHead className="text-gray-200 text-right">Mensajes</TableHead>
-                        <TableHead className="text-gray-200 text-right">Tiempo Ahorrado</TableHead>
-                        <TableHead className="text-gray-200 text-right">Coste Ahorrado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.usersWithStats.map((user) => {
-                        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                        return (
-                          <TableRow key={user.id} className="border-white/10">
-                            <TableCell className="font-medium text-gray-100 whitespace-nowrap">{fullName || 'N/A'}</TableCell>
-                            <TableCell className="text-gray-300">{user.email}</TableCell>
-                            <TableCell className="text-gray-300 whitespace-nowrap">{format(new Date(user.created_at), "d MMM, yyyy", { locale: es })}</TableCell>
-                            <TableCell className="text-right text-gray-300">{user.agent_count}</TableCell>
-                            <TableCell className="text-right text-gray-300">{user.message_count}</TableCell>
-                            <TableCell className="text-right text-green-400">{user.time_saved} min</TableCell>
-                            <TableCell className="text-right text-green-400">${user.cost_saved}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Card className="bg-black/30 border-white/10 h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-400" />
-                  Suscripciones Recientes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-scroll custom-scrollbar">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20 hover:bg-transparent">
-                        <TableHead className="text-gray-200">Nombre</TableHead>
-                        <TableHead className="text-gray-200">Email</TableHead>
-                        <TableHead className="text-gray-200 text-right">Fecha de Suscripción</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subscribedUsers.length > 0 ? (
-                        subscribedUsers.map((user) => {
-                          const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-                          return (
-                            <TableRow key={user.id} className="border-white/10">
-                              <TableCell className="font-medium text-gray-100 whitespace-nowrap">{fullName || 'N/A'}</TableCell>
-                              <TableCell className="text-gray-300">{user.email}</TableCell>
-                              <TableCell className="text-right text-gray-300 whitespace-nowrap">
-                                {format(new Date(user.subscribed_at!), "d MMM, yyyy HH:mm", { locale: es })}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="space-y-8"
+        >
+          {data.agencies.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Agencias</h2>
+              <Accordion type="single" collapsible className="w-full space-y-4">
+                {data.agencies.map((agency) => (
+                  <AccordionItem key={agency.id} value={agency.id} className="bg-black/30 border border-white/10 rounded-lg">
+                    <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                      <div className="flex items-center gap-4">
+                        <Building className="w-6 h-6 text-purple-400" />
+                        <div>
+                          <p className="font-semibold text-lg text-left">{agency.name}</p>
+                          <p className="text-sm text-gray-400 text-left">Dueño: {agency.owner.first_name} {agency.owner.last_name}</p>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                      <h3 className="text-md font-semibold mb-2 text-gray-300">Clientes de la Agencia</h3>
+                      {agency.clients.length > 0 ? (
+                        <UserTable users={agency.clients} />
                       ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-gray-500 py-8">
-                            No hay suscripciones recientes.
-                          </TableCell>
-                        </TableRow>
+                        <p className="text-sm text-gray-500">Esta agencia no tiene clientes.</p>
                       )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          )}
+
+          {data.independentUsers.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Usuarios Independientes</h2>
+              <UserTable users={data.independentUsers} />
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
