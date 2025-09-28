@@ -34,14 +34,36 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // --- START: MODIFIED LOGIC FOR AGENCY OWNERS ---
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // --- START: MODIFIED LOGIC FOR PROFILE HANDLING ---
+    let { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, agency_id')
       .eq('id', user.id)
       .single();
 
-    if (profileError) throw new Error("No se pudo obtener el perfil del usuario.");
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = no rows found
+      throw new Error("No se pudo obtener el perfil del usuario.");
+    }
+
+    if (!profile) {
+      // Profile doesn't exist, create it. This can happen on first login.
+      const { data: newProfile, error: createError } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+              id: user.id,
+              email: user.email,
+              first_name: user.user_metadata.first_name || '',
+              last_name: user.user_metadata.last_name || '',
+          })
+          .select('role, agency_id')
+          .single();
+      
+      if (createError) {
+          throw new Error("No se pudo crear el perfil de usuario.");
+      }
+      profile = newProfile;
+    }
+    // --- END: MODIFIED LOGIC FOR PROFILE HANDLING ---
 
     let userIdsToQuery = [user.id]; // Default to the current user
 
@@ -56,7 +78,6 @@ serve(async (req) => {
       // Query for the agency owner and all their clients
       userIdsToQuery = agencyUsers.map(u => u.id);
     }
-    // --- END: MODIFIED LOGIC FOR AGENCY OWNERS ---
 
     const { data: conversations, error: convError } = await supabaseAdmin
       .from('public_conversations')
