@@ -3,7 +3,7 @@ import { Agent as MockAgent } from "@/data/mock-agents";
 import { motion } from "framer-motion";
 import { Bot, Settings, Menu, Code, MessageCircle, BookOpen, Copy, Check, MessageSquareX, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
-import { MessageList } from "../chat/MessageList";
+import { MessageList } from "../chat/ChatMessageList";
 import { ChatInput } from "../chat/ChatInput";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -106,36 +106,28 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
     try {
       const history = messages;
 
-      const { data: stream, error } = await supabase.functions.invoke('ask-agent', {
+      const { data: responseText, error } = await supabase.functions.invoke('ask-agent', {
         body: {
           agentId: selectedAgent.id,
           prompt,
           history,
         },
-        responseType: 'stream'
-      } as any);
+      });
 
       if (error) throw error;
 
-      if (!stream) {
-        throw new Error("No se pudo leer la respuesta del servidor.");
+      if (typeof responseText !== 'string') {
+        console.error("Unexpected response format:", responseText);
+        throw new Error("La respuesta del servidor no tuvo el formato esperado.");
       }
       
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
+      const fullResponse = responseText;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullResponse += chunk;
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1].content = fullResponse;
-          return newMessages;
-        });
-      }
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].content = fullResponse;
+        return newMessages;
+      });
 
       await supabase.from("messages").insert({
         agent_id: selectedAgent.id,

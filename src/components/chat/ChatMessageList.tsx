@@ -7,12 +7,12 @@ interface Message {
   content: string;
 }
 
-interface MessageListProps {
+interface ChatMessageListProps {
   messages: Message[];
   isLoading: boolean;
 }
 
-export const MessageList = ({ messages, isLoading }: MessageListProps) => {
+export const MessageList = ({ messages, isLoading }: ChatMessageListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

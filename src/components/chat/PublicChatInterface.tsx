@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { MessageList } from "./MessageList";
+import { MessageList } from "./ChatMessageList";
 import { ChatInput } from "./ChatInput";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
@@ -46,37 +46,29 @@ export const PublicChatInterface = ({ agentConfig }: PublicChatInterfaceProps) =
 
     try {
       const history = messages;
-      const { data: stream, error } = await supabase.functions.invoke('ask-public-agent', {
+      const { data: responseText, error } = await supabase.functions.invoke('ask-public-agent', {
         body: { 
           agentId, 
           prompt, 
           history, 
           conversationId: conversationIdRef.current 
         },
-        responseType: 'stream'
-      } as any);
+      });
 
       if (error) throw error;
 
-      if (!stream) {
-        throw new Error("No se pudo leer la respuesta del servidor.");
+      if (typeof responseText !== 'string') {
+        console.error("Unexpected response format:", responseText);
+        throw new Error("La respuesta del servidor no tuvo el formato esperado.");
       }
       
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
+      const fullResponse = responseText;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullResponse += chunk;
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1].content = fullResponse;
-          return newMessages;
-        });
-      }
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].content = fullResponse;
+        return newMessages;
+      });
 
     } catch (err) {
       console.error(err);
