@@ -106,7 +106,6 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
     try {
       const history = messages;
 
-      // @ts-ignore
       const { data: stream, error } = await supabase.functions.invoke('ask-agent', {
         body: {
           agentId: selectedAgent.id,
@@ -114,7 +113,7 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
           history,
         },
         responseType: 'stream'
-      });
+      } as any);
 
       if (error) throw error;
 

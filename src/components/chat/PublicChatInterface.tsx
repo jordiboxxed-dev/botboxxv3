@@ -46,7 +46,6 @@ export const PublicChatInterface = ({ agentConfig }: PublicChatInterfaceProps) =
 
     try {
       const history = messages;
-      // @ts-ignore
       const { data: stream, error } = await supabase.functions.invoke('ask-public-agent', {
         body: { 
           agentId, 
@@ -55,7 +54,7 @@ export const PublicChatInterface = ({ agentConfig }: PublicChatInterfaceProps) =
           conversationId: conversationIdRef.current 
         },
         responseType: 'stream'
-      });
+      } as any);
 
       if (error) throw error;
 
