@@ -5,7 +5,7 @@ import { Bot, Settings, Menu, Code, MessageCircle, BookOpen, Copy, Check, Messag
 import { useState, useEffect } from "react";
 import { MessageList } from "../chat/MessageList";
 import { ChatInput } from "../chat/ChatInput";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -104,37 +104,25 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No estás autenticado.");
-      }
-      
       const history = messages;
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({
+      // @ts-ignore
+      const { data: stream, error } = await supabase.functions.invoke('ask-agent', {
+        body: {
           agentId: selectedAgent.id,
           prompt,
           history,
-        })
+        },
+        responseType: 'stream'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
-      }
+      if (error) throw error;
 
-      if (!response.body) {
+      if (!stream) {
         throw new Error("No se pudo leer la respuesta del servidor.");
       }
       
-      const reader = response.body.getReader();
+      const reader = stream.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 

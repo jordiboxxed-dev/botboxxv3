@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { showError, showSuccess } from "@/utils/toast";
 import { Calendar, CheckCircle, Link, Loader2, XCircle } from "lucide-react";
@@ -47,28 +47,19 @@ export const GoogleCalendarTool = () => {
   const handleConnect = async () => {
     setIsProcessing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No estás autenticado.");
-
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/google-auth-start`, {
+      const { data, error } = await supabase.functions.invoke('google-auth-start', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
+      if (error) {
+        throw error;
       }
 
-      const { authUrl } = await response.json();
-      if (!authUrl) {
+      if (!data || !data.authUrl) {
         throw new Error("La respuesta del servidor no contenía una URL de autenticación.");
       }
 
-      window.location.href = authUrl;
+      window.location.href = data.authUrl;
 
     } catch (error) {
       console.error("Frontend error during connect:", error);

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, X } from "lucide-react";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { PublicChatInterface, AgentConfig } from "./PublicChatInterface";
 
@@ -20,21 +20,12 @@ export const ChatWidget = () => {
 
     const fetchAgentConfig = async () => {
       try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/get-public-agent-config`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ agentId })
+        const { data, error } = await supabase.functions.invoke('get-public-agent-config', {
+          body: { agentId }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
-        }
+        if (error) throw error;
         
-        const data = await response.json();
         setAgentConfig(data);
       } catch (err) {
         console.error("Error fetching agent info:", err);

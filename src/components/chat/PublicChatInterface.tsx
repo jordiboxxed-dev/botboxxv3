@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { Bot } from "lucide-react";
 
@@ -46,30 +46,24 @@ export const PublicChatInterface = ({ agentConfig }: PublicChatInterfaceProps) =
 
     try {
       const history = messages;
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ask-public-agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ 
+      // @ts-ignore
+      const { data: stream, error } = await supabase.functions.invoke('ask-public-agent', {
+        body: { 
           agentId, 
           prompt, 
           history, 
           conversationId: conversationIdRef.current 
-        })
+        },
+        responseType: 'stream'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error del servidor: ${response.statusText}`);
-      }
+      if (error) throw error;
 
-      if (!response.body) {
+      if (!stream) {
         throw new Error("No se pudo leer la respuesta del servidor.");
       }
       
-      const reader = response.body.getReader();
+      const reader = stream.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 
