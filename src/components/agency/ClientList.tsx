@@ -80,6 +80,9 @@ export const ClientList = () => {
             localStorage.setItem('dyad_impersonation_original_session', JSON.stringify(currentSessionData.session));
 
             const { data, error } = await supabase.functions.invoke('impersonate-client', {
+                headers: {
+                    Authorization: `Bearer ${currentSessionData.session.access_token}`,
+                },
                 body: { clientId: client.id }
             });
 
@@ -104,7 +107,13 @@ export const ClientList = () => {
 
     const handleDeleteClient = async (clientId: string) => {
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error("Sesión no encontrada.");
+
             const { error } = await supabase.functions.invoke('delete-agency-client', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
                 body: { clientId }
             });
             if (error) throw error;

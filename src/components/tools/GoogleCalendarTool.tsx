@@ -47,8 +47,14 @@ export const GoogleCalendarTool = () => {
   const handleConnect = async () => {
     setIsProcessing(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sesión no encontrada.");
+
       const { data, error } = await supabase.functions.invoke('google-auth-start', {
         method: 'GET',
+        headers: {
+            Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) {

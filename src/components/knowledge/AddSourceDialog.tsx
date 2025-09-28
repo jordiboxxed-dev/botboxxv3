@@ -152,6 +152,12 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
   };
 
   const handleSubmit = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        showError("Usuario no autenticado. Por favor, inicia sesión de nuevo.");
+        return;
+    }
+
     if (sourceType === 'website') {
         if (!textContent) {
             showError("Por favor, introduce la URL del sitio web.");
@@ -161,6 +167,9 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         setStatusMessage("Iniciando rastreo del sitio web...");
         try {
             const { error } = await supabase.functions.invoke("scrape-and-embed", {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
                 body: { agentId, url: textContent },
             });
             if (error) throw error;
@@ -180,15 +189,9 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
     }
     setIsLoading(true);
     setStatusMessage("1/3: Guardando fuente de conocimiento...");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        showError("Usuario no autenticado.");
-        setIsLoading(false);
-        return;
-    }
 
     const { data: sourceData, error: sourceError } = await supabase.from("knowledge_sources").insert({
-        user_id: user.id,
+        user_id: session.user.id,
         agent_id: agentId,
         name,
         type: sourceType,
@@ -217,6 +220,9 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
             const chunk = chunks[i];
             setStatusMessage(`3/3: Procesando fragmento ${i + 1} de ${chunks.length}...`);
             const { error: embedError } = await supabase.functions.invoke("embed-and-store-chunk", {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
                 body: { sourceId: sourceData.id, chunk },
             });
             if (embedError) {

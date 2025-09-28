@@ -72,7 +72,14 @@ export const RoiDashboard = () => {
     const fetchAnalytics = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke("get-user-analytics");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Sesión no encontrada.");
+
+        const { data, error } = await supabase.functions.invoke("get-user-analytics", {
+            headers: {
+                Authorization: `Bearer ${session.access_token}`,
+            },
+        });
         if (error) throw error;
         if (data.error) throw new Error(data.error);
         setStats(data);

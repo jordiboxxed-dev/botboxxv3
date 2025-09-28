@@ -105,8 +105,13 @@ export const MainContent = ({ selectedAgent, onMenuClick, onClearChat }: MainCon
 
     try {
       const history = messages;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sesión no encontrada.");
 
       const { data: responseText, error } = await supabase.functions.invoke('ask-agent', {
+        headers: {
+            Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           agentId: selectedAgent.id,
           prompt,
