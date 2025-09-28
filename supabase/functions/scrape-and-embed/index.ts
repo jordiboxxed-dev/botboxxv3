@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4';
 import * as cheerio from "https://esm.sh/cheerio@1.0.0-rc.12";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.sh/@google/generative-ai@0.11.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,26 @@ const corsHeaders = {
 };
 
 const MAX_PAGES_TO_SCRAPE = 15;
+
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
+
+function simpleChunkText(text, chunkSize = 756, chunkOverlap = 100) {
+  const chunks = [];
+  if (!text || typeof text !== 'string') return chunks;
+
+  let i = 0;
+  while (i < text.length) {
+    const end = Math.min(i + chunkSize, text.length);
+    chunks.push(text.slice(i, end));
+    i += chunkSize - chunkOverlap;
+  }
+  return chunks.filter(chunk => chunk.trim().length > 0);
+}
 
 async function scrapeWebsite(startUrl) {
   const urlQueue = [startUrl];
@@ -40,7 +61,6 @@ async function scrapeWebsite(startUrl) {
       const html = await response.text();
       const $ = cheerio.load(html);
 
-      // Remove unwanted elements to get cleaner text
       $('script, style, nav, footer, header, aside').remove();
 
       const pageTitle = $('title').text() || '';
@@ -63,7 +83,6 @@ async function scrapeWebsite(startUrl) {
         }
 
         if (nextUrl.startsWith(baseUrl) && !visitedUrls.has(nextUrl) && !urlQueue.includes(nextUrl)) {
-          // Avoid links to files and anchors
           if (!nextUrl.match(/\.(pdf|jpg|png|zip|css|js|xml|json)$/i) && !nextUrl.includes('#')) {
             urlQueue.push(nextUrl);
           }
@@ -83,16 +102,12 @@ serve(async (req) => {
 
   try {
     const { agentId, url } = await req.json();
-    console.log("Scrape function called with:", { agentId, url });
-    
     if (!agentId || !url) {
-      console.error("Missing required parameters:", { agentId, url });
       throw new Error("agentId y url son requeridos.");
     }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error("Missing authorization header");
       throw new Error("Falta el encabezado de autorización.");
     }
     
@@ -105,7 +120,6 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("User authentication error:", userError);
       throw new Error("Token de usuario inválido.");
     }
 
@@ -115,7 +129,6 @@ serve(async (req) => {
     );
 
     const sourceName = new URL(url).hostname;
-    console.log("Creating knowledge source:", sourceName);
     
     const { data: sourceData, error: sourceError } = await supabaseAdmin.from("knowledge_sources").insert({
         user_id: user.id,
@@ -125,17 +138,14 @@ serve(async (req) => {
     }).select().single();
 
     if (sourceError) {
-      console.error("Error creating knowledge source:", sourceError);
       throw sourceError;
     }
 
-    // Responder inmediatamente para no causar timeout en el cliente
     const responsePromise = new Response(JSON.stringify({ message: "El rastreo del sitio web ha comenzado." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 202, // Accepted
+      status: 202,
     });
 
-    // Ejecutar el scraping en segundo plano
     setTimeout(async () => {
       try {
         console.log(`Starting scrape for ${sourceName}`);
@@ -143,16 +153,46 @@ serve(async (req) => {
         console.log(`Scraped ${fullText.length} characters from ${sourceName}`);
         
         if (fullText.trim().length > 0) {
-          console.log("Calling embed-and-store function");
-          const { data, error } = await supabaseAdmin.functions.invoke("embed-and-store", {
-            body: { sourceId: sourceData.id, textContent: fullText },
-          });
+          console.log("[scrape-and-embed BG] Processing scraped content...");
+          const apiKey = Deno.env.get("GEMINI_API_KEY");
+          if (!apiKey) throw new Error("GEMINI_API_KEY no está configurada.");
           
-          if (error) {
-            console.error("Error calling embed-and-store function:", error);
-          } else {
-            console.log("Embed-and-store function response:", data);
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004", safetySettings });
+
+          const chunks = simpleChunkText(fullText);
+          console.log(`[scrape-and-embed BG] Content split into ${chunks.length} chunks.`);
+
+          if (chunks.length === 0) {
+            console.log("[scrape-and-embed BG] No processable content found after chunking.");
+            return;
           }
+
+          const BATCH_SIZE = 100;
+          const allEmbeddings = [];
+
+          for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+            const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+            const embeddingsResponse = await embeddingModel.batchEmbedContents({
+              requests: batchChunks.map(chunk => ({ model: "models/text-embedding-004", content: { parts: [{ text: chunk }] } }))
+            });
+            allEmbeddings.push(...embeddingsResponse.embeddings);
+          }
+
+          if (allEmbeddings.length !== chunks.length) {
+            throw new Error(`Embedding mismatch. Chunks: ${chunks.length}, Embeddings: ${allEmbeddings.length}`);
+          }
+
+          const newChunksToInsert = chunks.map((chunk, i) => ({
+            source_id: sourceData.id,
+            content: chunk,
+            embedding: allEmbeddings[i].values,
+          }));
+
+          const { error } = await supabaseAdmin.from("knowledge_chunks").insert(newChunksToInsert);
+          if (error) throw error;
+
+          console.log(`[scrape-and-embed BG] Successfully stored ${chunks.length} chunks for source ${sourceData.id}.`);
         } else {
           console.warn(`No content scraped from ${sourceName}.`);
         }

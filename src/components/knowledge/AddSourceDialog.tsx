@@ -44,6 +44,19 @@ const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
   });
 };
 
+function simpleChunkText(text: string, chunkSize = 756, chunkOverlap = 100): string[] {
+  const chunks: string[] = [];
+  if (!text || typeof text !== 'string') return chunks;
+
+  let i = 0;
+  while (i < text.length) {
+    const end = Math.min(i + chunkSize, text.length);
+    chunks.push(text.slice(i, end));
+    i += chunkSize - chunkOverlap;
+  }
+  return chunks.filter(chunk => chunk.trim().length > 0);
+}
+
 export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: AddSourceDialogProps) => {
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -166,7 +179,7 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
       return;
     }
     setIsLoading(true);
-    setStatusMessage("1/2: Guardando fuente de conocimiento...");
+    setStatusMessage("1/3: Guardando fuente de conocimiento...");
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         showError("Usuario no autenticado.");
@@ -187,21 +200,35 @@ export const AddSourceDialog = ({ open, onOpenChange, agentId, onSourceAdded }: 
         return;
     }
 
-    setStatusMessage("2/2: Iniciando procesamiento en segundo plano...");
+    setStatusMessage("2/3: Fragmentando contenido...");
+    const chunks = simpleChunkText(textContent);
+    if (chunks.length === 0) {
+        showError("No se encontró contenido procesable en el texto.");
+        await supabase.from("knowledge_sources").delete().eq("id", sourceData.id);
+        setIsLoading(false);
+        setStatusMessage("");
+        return;
+    }
+
+    setStatusMessage(`3/3: Procesando ${chunks.length} fragmentos...`);
+    
     try {
-      const { error: embedError } = await supabase.functions.invoke("embed-and-store", {
-        body: { sourceId: sourceData.id, textContent },
-      });
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            setStatusMessage(`3/3: Procesando fragmento ${i + 1} de ${chunks.length}...`);
+            const { error: embedError } = await supabase.functions.invoke("embed-and-store-chunk", {
+                body: { sourceId: sourceData.id, chunk },
+            });
+            if (embedError) {
+                throw new Error(`Error en el fragmento ${i + 1}: ${embedError.message}`);
+            }
+        }
 
-      if (embedError) throw new Error(embedError.message);
-
-      showSuccess("¡Procesamiento iniciado! El conocimiento estará disponible en unos minutos.");
-      onSourceAdded();
-      handleClose();
+        showSuccess(`¡Conocimiento procesado! Se añadieron ${chunks.length} fragmentos.`);
+        onSourceAdded();
+        handleClose();
     } catch (err) {
-      showError("Error al iniciar el procesamiento: " + (err as Error).message);
-      // Si falla el procesamiento, eliminamos la fuente que creamos para no dejar datos huérfanos.
-      await supabase.from("knowledge_sources").delete().eq("id", sourceData.id);
+      showError("Error durante el procesamiento: " + (err as Error).message);
       setIsLoading(false);
       setStatusMessage("");
     }
