@@ -63,48 +63,45 @@ serve(async (req) => {
         throw new Error("Este cliente no pertenece a tu agencia.");
     }
 
-    // 4. Generate a magic link for the client
-    const appUrl = Deno.env.get("APP_URL");
-    if (!appUrl) throw new Error("La variable de entorno APP_URL no está configurada.");
-
+    // 4. Generate a magic link for the client to get a verification token
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email: clientProfile.email,
-        options: {
-            redirectTo: `${appUrl}/auth/callback` // A valid redirect URL is required
-        }
     });
 
     if (linkError) throw linkError;
 
     const actionLink = linkData.properties.action_link;
+    const url = new URL(actionLink);
+    const magicLinkToken = url.searchParams.get('token');
 
-    // 5. "Visit" the link server-side to get the redirect URL which contains the tokens
-    const verifyResponse = await fetch(actionLink, { redirect: 'manual' });
-
-    // We expect a 302 redirect. Deno's fetch doesn't follow redirects by default.
-    if (verifyResponse.status < 300 || verifyResponse.status >= 400) {
-        const errorBody = await verifyResponse.text();
-        throw new Error(`Fallo al verificar el enlace mágico. Estado: ${verifyResponse.status}. Cuerpo: ${errorBody}`);
+    if (!magicLinkToken) {
+        throw new Error("No se pudo extraer el token del enlace mágico generado.");
     }
 
-    const location = verifyResponse.headers.get('Location');
-    if (!location) {
-        throw new Error("La redirección de verificación no proporcionó una cabecera de ubicación.");
+    // 5. Verify the token using a temporary anon client to get a session for the client user
+    const tempSupabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? '',
+        Deno.env.get("SUPABASE_ANON_KEY") ?? ''
+    );
+
+    const { data: verifyData, error: verifyError } = await tempSupabaseClient.auth.verifyOtp({
+        token: magicLinkToken,
+        type: 'magiclink',
+        email: clientProfile.email,
+    });
+
+    if (verifyError) {
+        throw new Error(`Error al verificar el token de impersonación: ${verifyError.message}`);
     }
 
-    // 6. Parse the tokens from the URL fragment (#)
-    const url = new URL(location);
-    const params = new URLSearchParams(url.hash.substring(1)); // remove '#' at the beginning
-
-    const access_token = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
-
-    if (!access_token || !refresh_token) {
-        throw new Error("No se pudieron extraer los tokens de la redirección de verificación.");
+    if (!verifyData || !verifyData.session) {
+        throw new Error("La verificación del token no devolvió una sesión válida.");
     }
 
-    // 7. Return the tokens to the client
+    const { access_token, refresh_token } = verifyData.session;
+
+    // 6. Return the tokens to the agency owner's client
     return new Response(JSON.stringify({ access_token, refresh_token }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
