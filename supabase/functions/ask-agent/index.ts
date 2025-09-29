@@ -236,15 +236,14 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     if (!geminiApiKey) throw new Error("GEMINI_API_KEY no está configurada.");
     const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-    // 1. Gather all context
     const { data: sources, error: sourcesError } = await supabaseAdmin.from("knowledge_sources").select("id").eq("agent_id", agentId);
     if (sourcesError) throw sourcesError;
     const sourceIds = sources.map(s => s.id);
 
     let knowledgeContext = "No se encontró información relevante en la base de conocimiento.";
     if (sourceIds.length > 0) {
-      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
       const promptEmbedding = await embeddingModel.embedContent(prompt);
       const { data: chunks, error: matchError } = await supabaseAdmin.rpc('match_knowledge_chunks', {
         query_embedding: promptEmbedding.embedding.values,
@@ -260,90 +259,45 @@ serve(async (req) => {
 
     const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
     const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+
     let calendarContext = { summary: "La herramienta de Google Calendar no está configurada por el administrador.", events: [] };
     if (googleClientId && googleClientSecret) {
         calendarContext = await getCalendarEvents(user.id, supabaseAdmin);
     }
-
-    // 2. Route the request
-    const routerPrompt = `Tu tarea es clasificar la intención del usuario. El usuario está hablando con un agente de IA. ¿El usuario quiere agendar, reservar, crear o confirmar una cita, reunión o evento? Responde SÓLO con un objeto JSON con una única clave "action". El valor debe ser "schedule" si el usuario quiere agendar algo. De lo contrario, el valor debe ser "webhook". Ejemplos: Usuario: "¿Podemos agendar una reunión para mañana a las 3pm?" -> {"action": "schedule"}. Usuario: "Sí, esa hora me viene bien." (en un contexto de agendamiento) -> {"action": "schedule"}. Usuario: "¿Cuáles son sus precios?" -> {"action": "webhook"}. Último mensaje del usuario: "${prompt}"`;
     
-    const routerModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-    const routerResult = await routerModel.generateContent(routerPrompt);
-    const routerResponseText = routerResult.response.text();
-    
-    let action = "webhook";
-    try {
-      const parsedRouterResponse = JSON.parse(routerResponseText);
-      if (parsedRouterResponse.action === "schedule") {
-        action = "schedule";
-      }
-    } catch (e) {
-      console.error("Router parsing failed, defaulting to webhook:", e);
-    }
-
-    // 3. Process based on route
     let responseText;
-    if (action === "schedule") {
-      console.log("Action: schedule. Bypassing webhook for native tool call.");
-      
-      const generationPrompt = `
-        ${agentData.system_prompt}
-        ---
-        CONTEXTO ADICIONAL:
-        Fecha y Hora Actual: ${new Date().toISOString()}
-        Base de Conocimiento Relevante:
-        ${knowledgeContext}
-        Disponibilidad del Calendario (próximos 7 días):
-        ${calendarContext.summary}
-        ${calendarContext.events.map(e => `- ${e.summary} de ${e.startTime} a ${e.endTime}`).join('\n')}
-        ---
-        HISTORIAL DE CHAT:
-        ${(history || []).map(h => `${h.role}: ${h.content}`).join('\n')}
-        user: ${prompt}
-        ---
-        INSTRUCCIÓN:
-        Basado en TODO el contexto anterior, genera la respuesta adecuada. Si debes agendar una cita porque tienes toda la información necesaria y la confirmación del usuario, responde ÚNICA Y EXCLUSIVAMENTE con el objeto JSON para la herramienta 'create_calendar_event' como se especifica en tus instrucciones. De lo contrario, responde como texto normal para continuar la conversación.
-      `;
 
-      const generationModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-      const generationResult = await generationModel.generateContent(generationPrompt);
-      responseText = generationResult.response.text();
+    if (agentData.webhook_url && agentData.webhook_url.trim() !== "") {
+      const webhookPayload = {
+        agent: { id: agentId, system_prompt: agentData.system_prompt, company_name: agentData.company_name, model: agentData.model },
+        user: { id: user.id, email: user.email },
+        prompt: prompt,
+        history: history || [],
+        context: { knowledge: knowledgeContext, calendar: calendarContext }
+      };
 
-    } else {
-      console.log("Action: webhook. Calling external webhook.");
-      if (agentData.webhook_url && agentData.webhook_url.trim() !== "") {
-        const webhookPayload = {
-          agent: { id: agentId, system_prompt: agentData.system_prompt, company_name: agentData.company_name, model: agentData.model },
-          user: { id: user.id, email: user.email },
-          prompt: prompt,
-          history: history || [],
-          context: { knowledge: knowledgeContext, calendar: calendarContext }
-        };
+      const webhookResponse = await fetch(agentData.webhook_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webhookPayload)
+      });
 
-        const webhookResponse = await fetch(agentData.webhook_url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(webhookPayload)
-        });
-
-        if (!webhookResponse.ok) {
-          const errorText = await webhookResponse.text();
-          throw new Error(`El webhook devolvió un error (${webhookResponse.status}): ${errorText}`);
-        }
-
-        const responseData = await webhookResponse.json();
-        responseText = responseData.output;
-
-        if (typeof responseText !== 'string') {
-          throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
-        }
-      } else {
-        throw new Error("El agente no está configurado con una URL de webhook. Por favor, edita el agente y añade una URL de webhook válida para que pueda procesar las solicitudes.");
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        throw new Error(`El webhook devolvió un error (${webhookResponse.status}): ${errorText}`);
       }
+
+      const responseData = await webhookResponse.json();
+      responseText = responseData.output;
+
+      if (typeof responseText !== 'string') {
+        throw new Error("La respuesta del webhook no tiene el formato esperado { \"output\": \"...\" }");
+      }
+    } else {
+      throw new Error("El agente no está configurado con una URL de webhook. Por favor, edita el agente y añade una URL de webhook válida para que pueda procesar las solicitudes.");
     }
 
-    // 4. Execute tool if response is a tool call
+    // --- Tool Execution Logic (runs for both webhook and direct call) ---
     try {
       const toolCall = JSON.parse(responseText);
       if (toolCall.tool === 'create_calendar_event' && toolCall.params) {
@@ -355,7 +309,6 @@ serve(async (req) => {
       // Not a JSON or not a valid tool call, treat as plain text.
     }
 
-    // 5. Finalize
     const { data: profileData } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
     if (profileData && profileData.role !== 'admin') {
       await supabaseAdmin.rpc('increment_message_count', { p_user_id: user.id });
