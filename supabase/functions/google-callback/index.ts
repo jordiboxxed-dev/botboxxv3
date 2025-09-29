@@ -17,7 +17,7 @@ serve(async (req) => {
     const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
     const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
     const appUrl = Deno.env.get("APP_URL");
-    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-auth-callback`;
+    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-callback`;
 
     if (!googleClientId || !googleClientSecret || !appUrl) {
         console.error("Missing environment variables in callback:", { 
@@ -57,8 +57,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ''
     );
 
-    // Construir el objeto a guardar, incluyendo el refresh_token solo si se recibió uno nuevo.
-    // Esto evita borrar un refresh_token existente si Google no envía uno nuevo.
     const upsertData = {
       user_id: userId,
       service: "google_calendar",
@@ -77,13 +75,11 @@ serve(async (req) => {
     }
     console.log("Credentials successfully saved to Supabase for user:", userId);
 
-    // Redirigir de vuelta a la aplicación con éxito
     return Response.redirect(`${appUrl}/dashboard?google_auth=success`, 302);
 
   } catch (error) {
-    console.error("Error in google-auth-callback:", error);
+    console.error("Error in google-callback:", error);
     const appUrl = Deno.env.get("APP_URL") || "/";
-    // Redirigir de vuelta a la aplicación con error
     return Response.redirect(`${appUrl}/dashboard?google_auth=error&message=${encodeURIComponent(error.message)}`, 302);
   }
 });

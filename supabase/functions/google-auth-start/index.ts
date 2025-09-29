@@ -34,17 +34,16 @@ serve(async (req) => {
       throw new Error("Las variables de entorno GOOGLE_CLIENT_ID y APP_URL son requeridas.");
     }
 
-    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-auth-callback`;
+    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-callback`;
     
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     authUrl.searchParams.set("client_id", googleClientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("response_type", "code");
-    // Solicitar permisos de lectura y escritura para el calendario
     authUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar");
-    authUrl.searchParams.set("access_type", "offline"); // Muy importante para obtener el refresh_token
-    authUrl.searchParams.set("prompt", "consent");     // Muy importante para forzar que nos den el refresh_token
-    authUrl.searchParams.set("state", user.id); // Pasamos el user_id en el state para recuperarlo en el callback
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "consent");
+    authUrl.searchParams.set("state", user.id);
 
     console.log("Generated Google Auth URL:", authUrl.toString());
     
