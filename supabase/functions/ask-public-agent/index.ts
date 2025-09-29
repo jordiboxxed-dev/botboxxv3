@@ -117,6 +117,7 @@ async function createCalendarEvent(userId, params, supabaseAdmin) {
 
     const startTime = new Date(params.startTime);
     const endTime = new Date(startTime.getTime() + params.durationMinutes * 60000);
+    const calendarId = params.calendarId || 'primary'; // Usa 'primary' por defecto
 
     const event = {
       summary: params.title,
@@ -134,7 +135,7 @@ async function createCalendarEvent(userId, params, supabaseAdmin) {
       },
     };
 
-    const createResponse = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
+    const createResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?sendUpdates=all`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${access_token}`,
