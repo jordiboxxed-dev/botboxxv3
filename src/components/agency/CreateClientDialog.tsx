@@ -58,15 +58,9 @@ export const CreateClientDialog = ({ open, onOpenChange, onClientCreated }: Crea
     }
     setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("Sesión no encontrada. Por favor, inicia sesión de nuevo.");
-      }
-
+      // The Supabase client automatically includes the Authorization header
+      // if the user is logged in. No need to add it manually.
       const { data, error } = await supabase.functions.invoke('create-agency-client', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { firstName, lastName, email }
       });
 
