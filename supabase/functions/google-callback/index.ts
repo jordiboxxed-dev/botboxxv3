@@ -17,7 +17,9 @@ serve(async (req) => {
     const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID");
     const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
     const appUrl = Deno.env.get("APP_URL");
-    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-callback`;
+    
+    const supabaseUrl = (Deno.env.get("SUPABASE_URL") ?? '').replace(/\/$/, '');
+    const redirectUri = `${supabaseUrl}/functions/v1/google-callback`;
 
     if (!googleClientId || !googleClientSecret || !appUrl) {
         console.error("Missing environment variables in callback:", { 

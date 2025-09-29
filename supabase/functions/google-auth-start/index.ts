@@ -34,7 +34,8 @@ serve(async (req) => {
       throw new Error("Las variables de entorno GOOGLE_CLIENT_ID y APP_URL son requeridas.");
     }
 
-    const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-callback`;
+    const supabaseUrl = (Deno.env.get("SUPABASE_URL") ?? '').replace(/\/$/, '');
+    const redirectUri = `${supabaseUrl}/functions/v1/google-callback`;
     
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     authUrl.searchParams.set("client_id", googleClientId);
