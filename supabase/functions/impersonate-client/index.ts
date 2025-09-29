@@ -63,31 +63,28 @@ serve(async (req) => {
         throw new Error("Este cliente no pertenece a tu agencia.");
     }
 
-    // 4. Generate a magic link for the client to get a verification token
+    // 4. Generate a link to get an OTP for the client
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email: clientProfile.email,
     });
 
-    if (linkError) throw linkError;
-
-    const actionLink = linkData.properties.action_link;
-    const url = new URL(actionLink);
-    const magicLinkToken = url.searchParams.get('token');
-
-    if (!magicLinkToken) {
-        throw new Error("No se pudo extraer el token del enlace mágico generado.");
+    if (linkError) throw new Error(`Error al generar el enlace de impersonación: ${linkError.message}`);
+    
+    const otp = linkData.properties.email_otp;
+    if (!otp) {
+        throw new Error("No se pudo generar el código de un solo uso (OTP) para la impersonación.");
     }
 
-    // 5. Verify the token using a temporary anon client to get a session for the client user
+    // 5. Verify the OTP using a temporary anon client to get a session for the client user
     const tempSupabaseClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? '',
         Deno.env.get("SUPABASE_ANON_KEY") ?? ''
     );
 
     const { data: verifyData, error: verifyError } = await tempSupabaseClient.auth.verifyOtp({
-        token: magicLinkToken,
-        type: 'magiclink',
+        token: otp,
+        type: 'email', // Use 'email' type as we are using the email_otp
         email: clientProfile.email,
     });
 
